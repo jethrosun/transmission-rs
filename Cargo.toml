@@ -1,0 +1,13 @@
+[package]
+name = "transmission"
+version = "0.1.0"
+authors = ["Steven vanZyl <rushsteve1@rushsteve1.us>"]
+edition = "2018"
+readme = "README.md"
+license = "MIT"
+license-file = "LICENSE"
+categories = ["api-bindings"]
+keywords = ["torrent", "bittorrent", "transmission"]
+
+[dependencies]
+transmission-sys = "^0.1"
