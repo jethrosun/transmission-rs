@@ -5,7 +5,7 @@ authors = ["Steven vanZyl <rushsteve1@rushsteve1.us>"]
 edition = "2018"
 readme = "README.md"
 license = "MIT"
-license-file = "LICENSE"
+repository = "https://gitlab.com/tornado-torrent/transmission-rs"
 categories = ["api-bindings"]
 keywords = ["torrent", "bittorrent", "transmission"]
 
