@@ -9,5 +9,8 @@ repository = "https://gitlab.com/tornado-torrent/transmission-rs"
 categories = ["api-bindings"]
 keywords = ["torrent", "bittorrent", "transmission"]
 
+[badges]
+gitlab = { repository = "tornado-torrent/transmission-rs", branch = "master" }
+
 [dependencies]
 transmission-sys = "^0.1"
