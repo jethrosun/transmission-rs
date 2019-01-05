@@ -4,4 +4,8 @@
 
 Ergonomic Rust bindings for the [Transmission](https://transmissionbt.com/) bittorrent client.
 
-Based on [transmission-sys](https://gitlab.com/tornado-torrent/transmission-sys).
+Based on [transmission-sys](https://gitlab.com/tornado-torrent/transmission-sys)
+and requires all of the dependencies of that.
+
+Note that this is not intended to be used as a remote for the Transmission
+daemon and instead is a wrapper around libtransmission.

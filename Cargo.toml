@@ -13,4 +13,6 @@ keywords = ["torrent", "bittorrent", "transmission"]
 gitlab = { repository = "tornado-torrent/transmission-rs", branch = "master" }
 
 [dependencies]
-transmission-sys = "^0.1"
+transmission-sys = "0.1"
+serde = "^1.0"
+chrono = { version = "0.4", features = ["serde"] }

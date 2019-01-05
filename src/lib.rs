@@ -1,6 +1,6 @@
 // Re-exports
 pub mod client;
-pub mod model;
+mod error;
 pub mod torrent;
 
 #[cfg(test)]
