@@ -1,10 +1,12 @@
 use std::ffi;
 
+use serde::Serialize;
 use transmission_sys;
 
 use crate::error::{Error, TrResult};
 
 /// The various states that a torrent can be in.
+#[derive(Serialize)]
 pub enum TorrentState {
     Downloading,
     Seeding,
@@ -13,6 +15,7 @@ pub enum TorrentState {
 }
 
 /// Representation of a torrent download.
+#[derive(Serialize)]
 pub struct Torrent {
     tr_torrent: transmission_sys::tr_torrent,
 }
@@ -21,10 +24,10 @@ impl Torrent {
     /// Create a new torrent from a tr_ctor
     fn new(ctor: transmission_sys::tr_ctor) -> TrResult<Self> {
         let tor;
-        let mut error: i32 = 0;
-        let mut dupli: i32 = 0;
+        let mut error: u32;
+        let dupli: &mut transmission_sys::tr_info;
         unsafe {
-            tor = transmission_sys::tr_torrentNew(&ctor, &mut error, &mut dupli);
+            error = transmission_sys::tr_torrentParse(&ctor, &mut dupli);
         }
         // Match the possible errors from torrentNew
         match error as u32 {
@@ -60,11 +63,6 @@ impl Torrent {
 
     //# The following functions get information about the torrent
 
-    /// All the information about a torrent
-    pub fn stat(&mut self) -> TorrentStats {
-        unsafe { transmission_sys::tr_torrentStat(&mut self.tr_torrent) }
-    }
-
     /// This torrent's name
     pub fn name(&self) -> &str {
         unsafe {
@@ -83,8 +81,54 @@ impl Torrent {
     }
 }
 
-pub struct TorrentStats {}
+/*
+pub struct TorrentStats {
+    pub id: usize,
+    pub activity: tr_torrent_activity,
+    pub error: tr_stat_errtype,
+    pub errorString: String,
+    pub recheckProgress: f32,
+    pub percentComplete: f32,
+    pub metadataPercentComplete: f32,
+    pub percentDone: f32,
+    pub seedRatioPercentDone: f32,
+    pub rawUploadSpeed_KBps: f32,
+    pub rawDownloadSpeed_KBps: f32,
+    pub pieceUploadSpeed_KBps: f32,
+    pub pieceDownloadSpeed_KBps: f32,
+    pub eta: usize,
+    pub etaIdle: usize,
+    pub peersConnected: usize,
+    pub peersFrom: [usize; 7],
+    pub peersSendingToUs: usize,
+    pub peersGettingFromUs: usize,
+    pub webseedsSendingToUs: usize,
+    pub sizeWhenDone: u64,
+    pub leftUntilDone: u64,
+    pub desiredAvailable: u64,
+    pub corruptEver: u64,
+    pub uploadedEver: u64,
+    pub downloadedEver: u64,
+    pub haveValid: u64,
+    pub haveUnchecked: u64,
+    pub manualAnnounceTime: time_t,
+    pub ratio: f32,
+    pub addedDate: time_t,
+    pub doneDate: time_t,
+    pub startDate: time_t,
+    pub activityDate: time_t,
+    pub idleSecs: usize,
+    pub secondsDownloading: usize,
+    pub secondsSeeding: usize,
+    pub finished: bool,
+    pub queuePosition: usize,
+    pub isStalled: bool,
 
 impl From<transmission_sys::tr_stat> for TorrentStats {
-    fn from(stat: transmission_sys::tr_stat) -> Self {}
+    fn from(stat: transmission_sys::tr_stat) -> Self {
+        Self {
+
+        }
+    }
 }
+*/
