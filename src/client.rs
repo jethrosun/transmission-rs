@@ -1,6 +1,7 @@
 use std::ffi;
 use std::fs::canonicalize;
 use std::path::PathBuf;
+use std::ptr;
 
 use transmission_sys;
 
@@ -28,28 +29,14 @@ impl ClientConfig {
         self
     }
 
-    fn get_app_name(&self) -> &ffi::CStr {
-        ffi::CStr::from_bytes_with_nul(self.app_name.unwrap().as_bytes()).unwrap()
-    }
-
     pub fn config_dir(mut self, dir: &str) -> Self {
         self.config_dir = Some(canonicalize(dir).unwrap());
         self
     }
 
-    fn get_config_dir(&self) -> &ffi::CStr {
-        let c_dir = self.config_dir.unwrap();
-        ffi::CStr::from_bytes_with_nul(c_dir.to_str().unwrap().as_bytes()).unwrap()
-    }
-
     pub fn download_dir(mut self, dir: &str) -> Self {
         self.download_dir = Some(canonicalize(dir).unwrap());
         self
-    }
-
-    fn get_download_dir(&self) -> &ffi::CStr {
-        let d_dir = self.download_dir.unwrap();
-        ffi::CStr::from_bytes_with_nul(d_dir.to_str().unwrap().as_bytes()).unwrap()
     }
 }
 
@@ -63,16 +50,17 @@ impl Client {
     /// Creates a new [`Client`] after initializing the session.
     /// Takes in a path to the configuration directory.
     pub fn new(config: ClientConfig) -> Self {
-        // shadows previous
+        // Change things into the types needed
+        let c_dir = config.config_dir.unwrap();
+        let c_dir = ffi::CStr::from_bytes_with_nul(c_dir.to_str().unwrap().as_bytes()).unwrap();
+
+        let app_name = config.app_name.unwrap();
+        let app_name = ffi::CStr::from_bytes_with_nul(app_name.as_bytes()).unwrap();
+
         unsafe {
-            let c_dir = config.get_config_dir();
-            let set: &mut transmission_sys::tr_variant;
+            let set: *mut transmission_sys::tr_variant = ptr::null_mut();
             transmission_sys::tr_variantInitDict(set, 0);
-            transmission_sys::tr_sessionLoadSettings(
-                set,
-                c_dir.as_ptr(),
-                config.get_app_name().as_ptr(),
-            );
+            transmission_sys::tr_sessionLoadSettings(set, c_dir.as_ptr(), app_name.as_ptr());
             let ses = transmission_sys::tr_sessionInit(c_dir.as_ptr(), 0, set);
             Self { session: *ses }
         }
@@ -85,11 +73,11 @@ impl Client {
 
     /// Adds a torrent to download using a magnet link.
     pub fn add_torrent_magnet(&self, link: &str) -> TrResult<Torrent> {
-        unimplemented!()
+        unsafe {}
     }
 
     /// Returns a list of current torrents
-    pub fn torrents(&self) -> TrResult<Vec<Torrent>> {
+    pub fn list_torrents(&self) -> TrResult<Vec<Torrent>> {
         unimplemented!()
     }
 }
