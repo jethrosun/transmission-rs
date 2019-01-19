@@ -1,4 +1,5 @@
 use std::ffi;
+use std::ptr;
 
 use serde::Serialize;
 use transmission_sys;
@@ -6,6 +7,7 @@ use transmission_sys;
 use chrono::prelude::NaiveDateTime;
 
 use crate::error::{Error, TrResult};
+use crate::torrentbuilder::TorrentBuilder;
 
 /// The various states that a torrent can be in.
 #[derive(Debug, Serialize)]
@@ -29,6 +31,7 @@ pub enum TorrentState {
 }
 
 impl From<transmission_sys::tr_torrent_activity> for TorrentState {
+    /// Convert from the unsafe generated type to the safe library type
     fn from(act: transmission_sys::tr_torrent_activity) -> Self {
         match act {
             transmission_sys::tr_torrent_activity_TR_STATUS_DOWNLOAD => TorrentState::Downloading,
@@ -72,6 +75,7 @@ pub struct TorrentStats {
     pub raw_download_speed_kbps: f32,
     pub piece_upload_speed_kbps: f32,
     pub piece_download_speed_kbps: f32,
+    /// Estimated time of arrival (completion)
     pub eta: i32,
     pub eta_idle: i32,
     pub peers_connected: i32,
@@ -79,6 +83,7 @@ pub struct TorrentStats {
     pub peers_sending_to_us: i32,
     pub peers_getting_from_us: i32,
     pub webseeds_sending_to_us: i32,
+    /// Size in bytes when completed
     pub size_when_done: u64,
     pub left_until_done: u64,
     pub desired_available: u64,
@@ -88,21 +93,33 @@ pub struct TorrentStats {
     pub have_valid: u64,
     pub have_unchecked: u64,
     pub manual_announce_time: NaiveDateTime,
+    /// Seed ratio
     pub ratio: f32,
+    /// Date and time added
     pub added_date: NaiveDateTime,
+    /// Date and time finished
     pub done_date: NaiveDateTime,
+    /// Date and time started
     pub start_date: NaiveDateTime,
+    /// Date and time of last activity
     pub activity_date: NaiveDateTime,
+    /// How long it has been idle
     pub idle_secs: i32,
+    /// How long it has been downloading
     pub seconds_downloading: i32,
+    /// How log it has been seeding
     pub seconds_seeding: i32,
+    /// Is the torrent finished
     pub finished: bool,
+    /// What position in the queue is the torrent
     pub queue_position: i32,
+    /// Is the torrent stalled
     pub is_stalled: bool,
 }
 
 /// Converts tr_stat into TorrentStats
 impl From<*const transmission_sys::tr_stat> for TorrentStats {
+    /// Convert from the unsafe generated type to the safe library type
     fn from(stat: *const transmission_sys::tr_stat) -> Self {
         let stat = unsafe { *stat };
         Self {
@@ -163,6 +180,7 @@ impl From<*const transmission_sys::tr_stat> for TorrentStats {
 }
 
 /// Representation of a torrent download.
+#[derive(Clone, Copy, Debug)]
 pub struct Torrent {
     tr_torrent: *mut transmission_sys::tr_torrent,
 }
@@ -186,10 +204,16 @@ impl Torrent {
         }
     }
 
+    /// Alias to `TorrentBuilder::new()`
+    pub fn build() -> TorrentBuilder {
+        TorrentBuilder::new()
+    }
+
     /// Start or resume the torrent
     pub fn start(&mut self) {
         unsafe {
             transmission_sys::tr_torrentStart(self.tr_torrent);
+            assert_ne!(self.tr_torrent, ptr::null_mut());
         }
     }
 
@@ -197,6 +221,7 @@ impl Torrent {
     pub fn stop(&mut self) {
         unsafe {
             transmission_sys::tr_torrentStop(self.tr_torrent);
+            assert_ne!(self.tr_torrent, ptr::null_mut());
         }
     }
 
@@ -205,6 +230,12 @@ impl Torrent {
         unsafe {
             transmission_sys::tr_torrentRemove(self.tr_torrent, with_data, None);
         }
+    }
+
+    /// Verify the torrent
+    // TODO callback function
+    pub fn verify(&mut self) {
+        unsafe { transmission_sys::tr_torrentVerify(self.tr_torrent, None, ptr::null_mut()) }
     }
 
     //# The following functions get information about the torrent
@@ -222,8 +253,10 @@ impl Torrent {
         unsafe { transmission_sys::tr_torrentId(self.tr_torrent) }
     }
 
-    // All the stats of the torrent as given by Transmission
+    /// All the stats of the torrent as given by Transmission
     pub fn stats(&mut self) -> TorrentStats {
-        unsafe { TorrentStats::from(transmission_sys::tr_torrentStat(self.tr_torrent)) }
+        unsafe { TorrentStats::from(transmission_sys::tr_torrentStatCached(self.tr_torrent)) }
     }
+
+    // TODO torrent metadata info
 }

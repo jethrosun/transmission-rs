@@ -36,5 +36,5 @@ impl From<transmission_sys::tr_stat_errtype> for Error {
     }
 }
 
-/// Simple type for all results that use [model::Error]
+/// Simple type for all results that use `Error`
 pub type TrResult<T> = Result<T, Error>;
