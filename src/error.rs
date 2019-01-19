@@ -5,7 +5,7 @@ use serde::Serialize;
 use transmission_sys;
 
 /// Different kinds of errors that can be produced by Transmission
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum Error {
     /// A general state of non-error.
     /// If this is is ever unwrapped from a Result please file a bug report.

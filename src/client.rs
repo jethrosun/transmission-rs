@@ -1,11 +1,11 @@
 use std::ffi;
 use std::fs::canonicalize;
+use std::mem;
 use std::path::PathBuf;
-use std::ptr;
 
 use transmission_sys;
 
-use super::error::TrResult;
+use super::error::{Error, TrResult};
 use super::torrent::Torrent;
 
 /// Configuration for the torrent client made using a builder pattern.
@@ -13,6 +13,7 @@ pub struct ClientConfig {
     app_name: Option<String>,
     config_dir: Option<PathBuf>,
     download_dir: Option<PathBuf>,
+    use_utp: bool,
 }
 
 impl ClientConfig {
@@ -21,6 +22,7 @@ impl ClientConfig {
             app_name: None,
             config_dir: None,
             download_dir: None,
+            use_utp: true,
         }
     }
 
@@ -38,12 +40,17 @@ impl ClientConfig {
         self.download_dir = Some(canonicalize(dir).unwrap());
         self
     }
+
+    pub fn use_utp(mut self, utp: bool) -> Self {
+        self.use_utp = utp;
+        self
+    }
 }
 
 /// Interface into the major functions of Transmission
 /// including adding, querying, and removing torrents.
 pub struct Client {
-    session: transmission_sys::tr_session,
+    session: *mut transmission_sys::tr_session,
 }
 
 impl Client {
@@ -51,18 +58,26 @@ impl Client {
     /// Takes in a path to the configuration directory.
     pub fn new(config: ClientConfig) -> Self {
         // Change things into the types needed
-        let c_dir = config.config_dir.unwrap();
-        let c_dir = ffi::CStr::from_bytes_with_nul(c_dir.to_str().unwrap().as_bytes()).unwrap();
+        let c_dir = match config.config_dir {
+            Some(dir) => dir,
+            None => panic!("Configuration directory not set!"),
+        };
+        let c_dir = ffi::CString::new(c_dir.to_str().unwrap()).unwrap();
 
-        let app_name = config.app_name.unwrap();
-        let app_name = ffi::CStr::from_bytes_with_nul(app_name.as_bytes()).unwrap();
+        let app_name = match config.app_name {
+            Some(name) => name,
+            None => panic!("Application name not set!"),
+        };
+        let app_name = ffi::CString::new(app_name).unwrap();
 
         unsafe {
-            let set: *mut transmission_sys::tr_variant = ptr::null_mut();
-            transmission_sys::tr_variantInitDict(set, 0);
-            transmission_sys::tr_sessionLoadSettings(set, c_dir.as_ptr(), app_name.as_ptr());
-            let ses = transmission_sys::tr_sessionInit(c_dir.as_ptr(), 0, set);
-            Self { session: *ses }
+            let mut set: transmission_sys::tr_variant = mem::uninitialized();
+            transmission_sys::tr_variantInitDict(&mut set, 0);
+            transmission_sys::tr_sessionLoadSettings(&mut set, c_dir.as_ptr(), app_name.as_ptr());
+            let ses = transmission_sys::tr_sessionInit(c_dir.as_ptr(), false, &mut set);
+            transmission_sys::tr_sessionSetUTPEnabled(ses, config.use_utp);
+            transmission_sys::tr_variantFree(&mut set);
+            Self { session: ses }
         }
     }
 
@@ -72,12 +87,44 @@ impl Client {
     }
 
     /// Adds a torrent to download using a magnet link.
-    pub fn add_torrent_magnet(&self, link: &str) -> TrResult<Torrent> {
-        unsafe {}
+    pub fn add_torrent_magnet(&mut self, link: &str) -> TrResult<Torrent> {
+        let url = ffi::CString::new(link).unwrap();
+        unsafe {
+            let ctor = transmission_sys::tr_ctorNew(self.session);
+            match transmission_sys::tr_ctorSetMetainfoFromMagnetLink(ctor, url.as_ptr()) {
+                0 => Torrent::from_ctor(ctor),
+                _ => Err(Error::Unknown),
+            }
+        }
     }
 
     /// Returns a list of current torrents
     pub fn list_torrents(&self) -> TrResult<Vec<Torrent>> {
         unimplemented!()
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        unsafe {
+            transmission_sys::tr_sessionClose(self.session);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const MAGNET: &str = "magnet:?xt=urn:btih:85b530631740384bee5eeceb181ee5abebde856f&dn=hello.txt&tr=udp%3a%2f%2ftracker.uw0.xyz%3a6969";
+
+    #[test]
+    fn magnet_url() {
+        std::fs::remove_dir_all("/tmp/tr-test").unwrap();
+        std::fs::create_dir("/tmp/tr-test").unwrap();
+        let c = ClientConfig::new()
+            .app_name("testing")
+            .config_dir("/tmp/tr-test/");
+        let mut client = Client::new(c);
+        client.add_torrent_magnet(MAGNET).unwrap();
     }
 }

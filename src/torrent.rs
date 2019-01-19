@@ -8,7 +8,7 @@ use chrono::prelude::NaiveDateTime;
 use crate::error::{Error, TrResult};
 
 /// The various states that a torrent can be in.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum TorrentState {
     /// The torrent is downloading
     Downloading,
@@ -47,7 +47,7 @@ impl From<transmission_sys::tr_torrent_activity> for TorrentState {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct TorrentStats {
     /// The ID of the torrent
     pub id: i32,
@@ -56,49 +56,49 @@ pub struct TorrentStats {
     /// The error state (if any).
     pub error: Error,
     /// A string describing the above error if any
-    pub errorString: String,
+    pub error_string: String,
     /// Progress rechecking a torrent
-    pub recheckProgress: f32,
+    pub recheck_progress: f32,
     /// Percent of the total download completed
-    pub percentComplete: f32,
+    pub percent_complete: f32,
     /// Percent of the metadata download completed
-    pub metadataPercentComplete: f32,
+    pub metadata_percent_complete: f32,
     /// Percent of the desired download completed.
-    /// This differs from [`torrent::TorrentStats::percentComplete`] if the user only wants some of a torrent's files.
-    pub percentDone: f32,
+    /// This differs from [`torrent::TorrentStats::percent_complete`] if the user only wants some of a torrent's files.
+    pub percent_done: f32,
     /// Percent of the seed ratio uploaded. 1 if completed or infinite.
-    pub seedRatioPercentDone: f32,
-    pub rawUploadSpeed_KBps: f32,
-    pub rawDownloadSpeed_KBps: f32,
-    pub pieceUploadSpeed_KBps: f32,
-    pub pieceDownloadSpeed_KBps: f32,
+    pub seed_ratio_percent_done: f32,
+    pub raw_upload_speed_kbps: f32,
+    pub raw_download_speed_kbps: f32,
+    pub piece_upload_speed_kbps: f32,
+    pub piece_download_speed_kbps: f32,
     pub eta: i32,
-    pub etaIdle: i32,
-    pub peersConnected: i32,
-    pub peersFrom: [i32; 7],
-    pub peersSendingToUs: i32,
-    pub peersGettingFromUs: i32,
-    pub webseedsSendingToUs: i32,
-    pub sizeWhenDone: u64,
-    pub leftUntilDone: u64,
-    pub desiredAvailable: u64,
-    pub corruptEver: u64,
-    pub uploadedEver: u64,
-    pub downloadedEver: u64,
-    pub haveValid: u64,
-    pub haveUnchecked: u64,
-    pub manualAnnounceTime: NaiveDateTime,
+    pub eta_idle: i32,
+    pub peers_connected: i32,
+    pub peers_from: [i32; 7],
+    pub peers_sending_to_us: i32,
+    pub peers_getting_from_us: i32,
+    pub webseeds_sending_to_us: i32,
+    pub size_when_done: u64,
+    pub left_until_done: u64,
+    pub desired_available: u64,
+    pub corrupt_ever: u64,
+    pub uploaded_ever: u64,
+    pub downloaded_ever: u64,
+    pub have_valid: u64,
+    pub have_unchecked: u64,
+    pub manual_announce_time: NaiveDateTime,
     pub ratio: f32,
-    pub addedDate: NaiveDateTime,
-    pub doneDate: NaiveDateTime,
-    pub startDate: NaiveDateTime,
-    pub activityDate: NaiveDateTime,
-    pub idleSecs: i32,
-    pub secondsDownloading: i32,
-    pub secondsSeeding: i32,
+    pub added_date: NaiveDateTime,
+    pub done_date: NaiveDateTime,
+    pub start_date: NaiveDateTime,
+    pub activity_date: NaiveDateTime,
+    pub idle_secs: i32,
+    pub seconds_downloading: i32,
+    pub seconds_seeding: i32,
     pub finished: bool,
-    pub queuePosition: i32,
-    pub isStalled: bool,
+    pub queue_position: i32,
+    pub is_stalled: bool,
 }
 
 /// Converts tr_stat into TorrentStats
@@ -109,49 +109,49 @@ impl From<transmission_sys::tr_stat> for TorrentStats {
             state: TorrentState::from(stat.activity),
             error: Error::from(stat.error),
             // Strings in C are awful and force use to do things like this
-            errorString: ffi::CStr::from_bytes_with_nul(unsafe {
+            error_string: ffi::CStr::from_bytes_with_nul(unsafe {
                 &*(&stat.errorString[0..] as *const _ as *const [u8])
             })
             .unwrap()
             .to_str()
             .unwrap()
             .into(),
-            recheckProgress: stat.recheckProgress,
-            percentComplete: stat.percentComplete,
-            metadataPercentComplete: stat.metadataPercentComplete,
-            percentDone: stat.percentDone,
-            seedRatioPercentDone: stat.seedRatioPercentDone,
-            rawUploadSpeed_KBps: stat.rawUploadSpeed_KBps,
-            rawDownloadSpeed_KBps: stat.rawDownloadSpeed_KBps,
-            pieceUploadSpeed_KBps: stat.pieceUploadSpeed_KBps,
-            pieceDownloadSpeed_KBps: stat.pieceDownloadSpeed_KBps,
+            recheck_progress: stat.recheckProgress,
+            percent_complete: stat.percentComplete,
+            metadata_percent_complete: stat.metadataPercentComplete,
+            percent_done: stat.percentDone,
+            seed_ratio_percent_done: stat.seedRatioPercentDone,
+            raw_upload_speed_kbps: stat.rawUploadSpeed_KBps,
+            raw_download_speed_kbps: stat.rawDownloadSpeed_KBps,
+            piece_upload_speed_kbps: stat.pieceUploadSpeed_KBps,
+            piece_download_speed_kbps: stat.pieceDownloadSpeed_KBps,
             eta: stat.eta,
-            etaIdle: stat.etaIdle,
-            peersConnected: stat.peersConnected,
-            peersFrom: stat.peersFrom,
-            peersSendingToUs: stat.peersSendingToUs,
-            peersGettingFromUs: stat.peersGettingFromUs,
-            webseedsSendingToUs: stat.webseedsSendingToUs,
-            sizeWhenDone: stat.sizeWhenDone,
-            leftUntilDone: stat.leftUntilDone,
-            desiredAvailable: stat.desiredAvailable,
-            corruptEver: stat.corruptEver,
-            uploadedEver: stat.uploadedEver,
-            downloadedEver: stat.downloadedEver,
-            haveValid: stat.haveValid,
-            haveUnchecked: stat.haveUnchecked,
-            manualAnnounceTime: NaiveDateTime::from_timestamp(stat.manualAnnounceTime, 0),
+            eta_idle: stat.etaIdle,
+            peers_connected: stat.peersConnected,
+            peers_from: stat.peersFrom,
+            peers_sending_to_us: stat.peersSendingToUs,
+            peers_getting_from_us: stat.peersGettingFromUs,
+            webseeds_sending_to_us: stat.webseedsSendingToUs,
+            size_when_done: stat.sizeWhenDone,
+            left_until_done: stat.leftUntilDone,
+            desired_available: stat.desiredAvailable,
+            corrupt_ever: stat.corruptEver,
+            uploaded_ever: stat.uploadedEver,
+            downloaded_ever: stat.downloadedEver,
+            have_valid: stat.haveValid,
+            have_unchecked: stat.haveUnchecked,
+            manual_announce_time: NaiveDateTime::from_timestamp(stat.manualAnnounceTime, 0),
             ratio: stat.ratio,
-            addedDate: NaiveDateTime::from_timestamp(stat.addedDate, 0),
-            doneDate: NaiveDateTime::from_timestamp(stat.doneDate, 0),
-            startDate: NaiveDateTime::from_timestamp(stat.startDate, 0),
-            activityDate: NaiveDateTime::from_timestamp(stat.activityDate, 0),
-            idleSecs: stat.idleSecs,
-            secondsDownloading: stat.secondsDownloading,
-            secondsSeeding: stat.secondsSeeding,
-            finished: stat.finished == 0,
-            queuePosition: stat.queuePosition,
-            isStalled: stat.isStalled == 0,
+            added_date: NaiveDateTime::from_timestamp(stat.addedDate, 0),
+            done_date: NaiveDateTime::from_timestamp(stat.doneDate, 0),
+            start_date: NaiveDateTime::from_timestamp(stat.startDate, 0),
+            activity_date: NaiveDateTime::from_timestamp(stat.activityDate, 0),
+            idle_secs: stat.idleSecs,
+            seconds_downloading: stat.secondsDownloading,
+            seconds_seeding: stat.secondsSeeding,
+            finished: stat.finished,
+            queue_position: stat.queuePosition,
+            is_stalled: stat.isStalled,
         }
     }
 }
@@ -163,12 +163,12 @@ pub struct Torrent {
 
 impl Torrent {
     /// Create a new torrent from a tr_ctor
-    fn new(ctor: transmission_sys::tr_ctor) -> TrResult<Self> {
+    pub fn from_ctor(ctor: *mut transmission_sys::tr_ctor) -> TrResult<Self> {
         let tor;
         let mut error = 0;
         let mut dupli = 0;
         unsafe {
-            tor = transmission_sys::tr_torrentNew(&ctor, &mut error, &mut dupli);
+            tor = transmission_sys::tr_torrentNew(ctor, &mut error, &mut dupli);
         }
         // Match the possible errors from torrentNew
         match error as u32 {
@@ -194,9 +194,9 @@ impl Torrent {
     }
 
     /// Removes a torrent from the downloads
-    pub fn remove(&mut self) {
+    pub fn remove(&mut self, with_data: bool) {
         unsafe {
-            transmission_sys::tr_torrentRemove(&mut self.tr_torrent, 0, None);
+            transmission_sys::tr_torrentRemove(&mut self.tr_torrent, with_data, None);
         }
     }
 
