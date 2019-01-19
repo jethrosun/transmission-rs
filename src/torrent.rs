@@ -102,20 +102,26 @@ pub struct TorrentStats {
 }
 
 /// Converts tr_stat into TorrentStats
-impl From<transmission_sys::tr_stat> for TorrentStats {
-    fn from(stat: transmission_sys::tr_stat) -> Self {
+impl From<*const transmission_sys::tr_stat> for TorrentStats {
+    fn from(stat: *const transmission_sys::tr_stat) -> Self {
+        let stat = unsafe { *stat };
         Self {
             id: stat.id,
             state: TorrentState::from(stat.activity),
             error: Error::from(stat.error),
             // Strings in C are awful and force use to do things like this
-            error_string: ffi::CStr::from_bytes_with_nul(unsafe {
-                &*(&stat.errorString[0..] as *const _ as *const [u8])
-            })
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .into(),
+            error_string: {
+                let slice = unsafe { &*(&stat.errorString[0..] as *const _ as *const [u8]) };
+                if slice[0] == 0 {
+                    "".to_owned()
+                } else {
+                    ffi::CStr::from_bytes_with_nul(slice)
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_owned()
+                }
+            },
             recheck_progress: stat.recheckProgress,
             percent_complete: stat.percentComplete,
             metadata_percent_complete: stat.metadataPercentComplete,
@@ -158,7 +164,7 @@ impl From<transmission_sys::tr_stat> for TorrentStats {
 
 /// Representation of a torrent download.
 pub struct Torrent {
-    tr_torrent: transmission_sys::tr_torrent,
+    tr_torrent: *mut transmission_sys::tr_torrent,
 }
 
 impl Torrent {
@@ -170,33 +176,34 @@ impl Torrent {
         unsafe {
             tor = transmission_sys::tr_torrentNew(ctor, &mut error, &mut dupli);
         }
+        assert!(tor != std::ptr::null_mut());
         // Match the possible errors from torrentNew
         match error as u32 {
             transmission_sys::tr_parse_result_TR_PARSE_ERR => Err(Error::ParseErr),
             transmission_sys::tr_parse_result_TR_PARSE_DUPLICATE => Err(Error::ParseDuplicate),
-            transmission_sys::tr_parse_result_TR_PARSE_OK => unsafe {
-                Ok(Self { tr_torrent: *tor })
-            },
+            transmission_sys::tr_parse_result_TR_PARSE_OK => Ok(Self { tr_torrent: tor }),
             _ => Err(Error::Unknown),
         }
     }
+
     /// Start or resume the torrent
     pub fn start(&mut self) {
         unsafe {
-            transmission_sys::tr_torrentStart(&mut self.tr_torrent);
+            transmission_sys::tr_torrentStart(self.tr_torrent);
         }
     }
+
     /// Stop (pause) the torrent
     pub fn stop(&mut self) {
         unsafe {
-            transmission_sys::tr_torrentStop(&mut self.tr_torrent);
+            transmission_sys::tr_torrentStop(self.tr_torrent);
         }
     }
 
     /// Removes a torrent from the downloads
     pub fn remove(&mut self, with_data: bool) {
         unsafe {
-            transmission_sys::tr_torrentRemove(&mut self.tr_torrent, with_data, None);
+            transmission_sys::tr_torrentRemove(self.tr_torrent, with_data, None);
         }
     }
 
@@ -205,26 +212,18 @@ impl Torrent {
     /// This torrent's name
     pub fn name(&self) -> &str {
         unsafe {
-            let c_str = transmission_sys::tr_torrentName(&self.tr_torrent);
+            let c_str = transmission_sys::tr_torrentName(self.tr_torrent);
             ffi::CStr::from_ptr(c_str).to_str().unwrap()
         }
     }
 
     /// The unique ID of the torrent
-    pub fn id(&self) -> usize {
-        let c_id;
-        unsafe {
-            c_id = transmission_sys::tr_torrentId(&self.tr_torrent);
-        }
-        c_id as usize
+    pub fn id(&self) -> i32 {
+        unsafe { transmission_sys::tr_torrentId(self.tr_torrent) }
     }
 
     // All the stats of the torrent as given by Transmission
     pub fn stats(&mut self) -> TorrentStats {
-        let stats;
-        unsafe {
-            stats = transmission_sys::tr_torrentStat(&mut self.tr_torrent);
-        }
-        TorrentStats::from(unsafe { *stats })
+        unsafe { TorrentStats::from(transmission_sys::tr_torrentStat(self.tr_torrent)) }
     }
 }
