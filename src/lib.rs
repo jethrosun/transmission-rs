@@ -4,6 +4,6 @@ pub mod error;
 pub mod torrent;
 pub mod torrentbuilder;
 
-pub use client::Client;
-pub use torrent::Torrent;
-pub use torrentbuilder::TorrentBuilder;
+pub use crate::client::Client;
+pub use crate::torrent::Torrent;
+pub use crate::torrentbuilder::TorrentBuilder;

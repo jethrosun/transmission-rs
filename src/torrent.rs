@@ -1,5 +1,6 @@
 use std::ffi;
 use std::ptr;
+use std::sync::RwLock;
 
 use serde::Serialize;
 use transmission_sys;
@@ -180,14 +181,14 @@ impl From<*const transmission_sys::tr_stat> for TorrentStats {
 }
 
 /// Representation of a torrent download.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Torrent {
-    tr_torrent: *mut transmission_sys::tr_torrent,
+    tr_torrent: RwLock<*mut transmission_sys::tr_torrent>,
 }
 
 impl Torrent {
     /// Create a new torrent from a tr_ctor
-    pub fn from_ctor(ctor: *mut transmission_sys::tr_ctor) -> TrResult<Self> {
+    pub fn from_ctor<'a>(ctor: *mut transmission_sys::tr_ctor) -> TrResult<Self> {
         let tor;
         let mut error = 0;
         let mut dupli = 0;
@@ -199,7 +200,9 @@ impl Torrent {
         match error as u32 {
             transmission_sys::tr_parse_result_TR_PARSE_ERR => Err(Error::ParseErr),
             transmission_sys::tr_parse_result_TR_PARSE_DUPLICATE => Err(Error::ParseDuplicate),
-            transmission_sys::tr_parse_result_TR_PARSE_OK => Ok(Self { tr_torrent: tor }),
+            transmission_sys::tr_parse_result_TR_PARSE_OK => Ok(Self {
+                tr_torrent: RwLock::new(tor),
+            }),
             _ => Err(Error::Unknown),
         }
     }
@@ -211,51 +214,56 @@ impl Torrent {
 
     /// Start or resume the torrent
     pub fn start(&mut self) {
+        let tor = *self.tr_torrent.write().unwrap();
         unsafe {
-            transmission_sys::tr_torrentStart(self.tr_torrent);
-            assert_ne!(self.tr_torrent, ptr::null_mut());
+            transmission_sys::tr_torrentStart(tor);
         }
     }
 
     /// Stop (pause) the torrent
     pub fn stop(&mut self) {
+        let tor = *self.tr_torrent.write().unwrap();
         unsafe {
-            transmission_sys::tr_torrentStop(self.tr_torrent);
-            assert_ne!(self.tr_torrent, ptr::null_mut());
+            transmission_sys::tr_torrentStop(tor);
         }
     }
 
     /// Removes a torrent from the downloads
     pub fn remove(&mut self, with_data: bool) {
+        let tor = *self.tr_torrent.write().unwrap();
         unsafe {
-            transmission_sys::tr_torrentRemove(self.tr_torrent, with_data, None);
+            transmission_sys::tr_torrentRemove(tor, with_data, None);
         }
     }
 
     /// Verify the torrent
     // TODO callback function
     pub fn verify(&mut self) {
-        unsafe { transmission_sys::tr_torrentVerify(self.tr_torrent, None, ptr::null_mut()) }
+        let tor = *self.tr_torrent.write().unwrap();
+        unsafe { transmission_sys::tr_torrentVerify(tor, None, ptr::null_mut()) }
     }
 
     //# The following functions get information about the torrent
 
     /// This torrent's name
     pub fn name(&self) -> &str {
+        let tor = *self.tr_torrent.write().unwrap();
         unsafe {
-            let c_str = transmission_sys::tr_torrentName(self.tr_torrent);
+            let c_str = transmission_sys::tr_torrentName(tor);
             ffi::CStr::from_ptr(c_str).to_str().unwrap()
         }
     }
 
     /// The unique ID of the torrent
     pub fn id(&self) -> i32 {
-        unsafe { transmission_sys::tr_torrentId(self.tr_torrent) }
+        let tor = *self.tr_torrent.write().unwrap();
+        unsafe { transmission_sys::tr_torrentId(tor) }
     }
 
     /// All the stats of the torrent as given by Transmission
     pub fn stats(&mut self) -> TorrentStats {
-        unsafe { TorrentStats::from(transmission_sys::tr_torrentStatCached(self.tr_torrent)) }
+        let tor = *self.tr_torrent.write().unwrap();
+        unsafe { TorrentStats::from(transmission_sys::tr_torrentStatCached(tor)) }
     }
 
     // TODO torrent metadata info
