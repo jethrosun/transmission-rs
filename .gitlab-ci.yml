@@ -10,8 +10,7 @@ before_script:
   - apt-get install -yqq --no-install-recommends build-essential clang libcurl4-openssl-dev libevent-dev libclang-dev libssl-dev cmake
 
 # Use cargo to test the project
-build:cargo:
+test:cargo:
   script:
   - rustc --version && cargo --version      # Print version info for debugging
-  - git submodule update --init --recursive
   - cargo test
