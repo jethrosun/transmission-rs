@@ -268,3 +268,17 @@ impl Torrent {
 
     // TODO torrent metadata info
 }
+
+unsafe impl Send for Torrent {}
+unsafe impl Sync for Torrent {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+
+    #[test]
+    fn thread_safe() {
+        unimplemented!()
+    }
+}
