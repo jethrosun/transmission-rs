@@ -2,14 +2,16 @@ use std::ffi;
 use std::fs::canonicalize;
 use std::mem;
 use std::path::PathBuf;
+use std::ptr;
 use std::sync::RwLock;
 use transmission_sys;
 
 use super::error::{Error, TrResult};
 use super::torrent::Torrent;
 
-// TODO expand on this to have all the options Transmission exposes
+// const MAGIC_NUMBER: u32 = 3245;
 
+// TODO expand on this to have all the options Transmission exposes
 /// Configuration for the torrent client made using a builder pattern.
 pub struct ClientConfig {
     /// The name of the client application
@@ -76,8 +78,8 @@ impl ClientConfig {
 /// Interface into the major functions of Transmission
 /// including adding, querying, and removing torrents.
 pub struct Client {
-    tr_session: RwLock<*mut transmission_sys::tr_session>,
-    torrents: Vec<Torrent>,
+    // tr_session: RwLock<mem::ManuallyDrop<transmission_sys::tr_session>>,
+    tr_session: RwLock<transmission_sys::tr_session>,
 }
 
 impl Client {
@@ -110,50 +112,57 @@ impl Client {
             transmission_sys::tr_sessionSetUTPEnabled(ses, config.use_utp);
         }
         Self {
-            tr_session: RwLock::new(ses),
-            torrents: Vec::new(),
+            tr_session: RwLock::new(unsafe { *ses }),
         }
     }
 
     /// Adds a torrent using either a path or URL to a torrent file.
-    pub fn add_torrent_file(&mut self, path: &str) -> TrResult<&mut Torrent> {
+    pub fn add_torrent_file(&mut self, path: &str) -> TrResult<Torrent> {
         let path = canonicalize(path).unwrap();
         let path = ffi::CString::new(path.to_str().unwrap()).unwrap();
 
-        let ses = *self.tr_session.write().unwrap();
+        let ses = &mut *self.tr_session.write().unwrap();
         let ctor;
         unsafe {
             ctor = transmission_sys::tr_ctorNew(ses);
         }
         match unsafe { transmission_sys::tr_ctorSetMetainfoFromFile(ctor, path.as_ptr()) } {
-            0 => Torrent::from_ctor(ctor).and_then(move |t| {
-                self.torrents.push(t);
-                Ok(self.torrents.last_mut().unwrap())
-            }),
+            0 => Torrent::from_ctor(ctor),
             _ => Err(Error::Unknown),
         }
     }
 
     /// Adds a torrent to download using a magnet link.
-    pub fn add_torrent_magnet(&mut self, link: &str) -> TrResult<&mut Torrent> {
+    pub fn add_torrent_magnet(&mut self, link: &str) -> TrResult<Torrent> {
         let link = ffi::CString::new(link).unwrap();
-        let ses = *self.tr_session.write().unwrap();
+        let ses = &mut *self.tr_session.write().unwrap();
         let ctor;
         unsafe {
             ctor = transmission_sys::tr_ctorNew(ses);
         }
         match unsafe { transmission_sys::tr_ctorSetMetainfoFromMagnetLink(ctor, link.as_ptr()) } {
-            0 => Torrent::from_ctor(ctor).and_then(move |t| {
-                self.torrents.push(t);
-                Ok(self.torrents.last_mut().unwrap())
-            }),
+            0 => Torrent::from_ctor(ctor),
             _ => Err(Error::Unknown),
         }
     }
 
     /// Returns a list of current torrents
-    pub fn list_torrents(&self) -> &Vec<Torrent> {
-        &self.torrents
+    pub fn list_torrents(&self) -> Vec<TrResult<&mut Torrent>> {
+        /*
+        let ses = &mut **self.tr_session.write().unwrap();
+        let tors: *mut *mut transmission_sys::tr_torrent;
+        let mut err = 0;
+        let mut len = 0;
+        unsafe {
+            tors = transmission_sys::tr_sessionGetTorrents(ses, &mut err);
+            len =
+            Vec::from_raw_parts(tors, len, len)
+                .iter()
+                .map(|e| Torrent::from_tr_torrent(*e))
+                .collect()
+        }
+        */
+        unimplemented!()
     }
 
     /// Closes the client ending the session.
@@ -163,23 +172,27 @@ impl Client {
     }
 }
 
+/*
 impl Drop for Client {
     fn drop(&mut self) {
-        let ses = *self.tr_session.write().unwrap();
+        let ses = &mut **self.tr_session.write().unwrap();
         unsafe {
             transmission_sys::tr_sessionClose(ses);
+            mem::ManuallyDrop::drop(&mut *self.tr_session.write().unwrap());
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // These both lead to the same torrent
-    const MAGNET: &str = "magnet:?xt=urn:btih:85b530631740384bee5eeceb181ee5abebde856f&dn=hello.txt&tr=udp%3a%2f%2ftracker.uw0.xyz%3a6969";
+    // These both lead to the same torrent of Alpine Linux extended
+    const MAGNET: &str = "magnet:?xt=urn:btih:f04905751c91af11a3745b1ce4500f4bf0de0d18&dn=alpine-extended-3.8.2-x86_64.iso&tr=http%3a%2f%2ftorrent.resonatingmedia.com%3a6969%2fannounce";
     const FILE_PATH: &str = "./alpine.torrent";
 
+    // Try to add by magnet link
     #[test]
     fn add_torrent_magnet() {
         std::fs::remove_dir_all("/tmp/tr-test-magnet").unwrap_or(());
@@ -188,11 +201,11 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-magnet/")
             .download_dir("/tmp/tr-test-magnet/");
-        let mut client = Client::new(c);
-        let t = client.add_torrent_magnet(MAGNET).unwrap();
+        let mut t = Client::new(c).add_torrent_magnet(MAGNET).unwrap();
         println!("{:#?}", t.stats());
     }
 
+    // Try to add by torrent file
     #[test]
     fn add_torrent_file() {
         std::fs::remove_dir_all("/tmp/tr-test-file").unwrap_or(());
@@ -201,11 +214,11 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-file/")
             .download_dir("/tmp/tr-test-file/");
-        let mut client = Client::new(c);
-        let t = client.add_torrent_file(FILE_PATH).unwrap();
+        let mut t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
         println!("{:#?}", t.stats());
     }
 
+    // Wait for download to finish
     #[test]
     #[ignore]
     fn download_torrent() {
@@ -215,8 +228,7 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-dl/")
             .download_dir("/tmp/tr-test-dl/");
-        let mut client = Client::new(c);
-        let t = client.add_torrent_file(FILE_PATH).unwrap();
+        let mut t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
         t.start();
         println!("{:#?}", t.stats());
         // Run until done
