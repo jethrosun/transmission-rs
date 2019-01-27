@@ -2,7 +2,7 @@ use std::ffi;
 use std::fs::canonicalize;
 use std::mem;
 use std::path::PathBuf;
-use std::ptr;
+use std::ptr::NonNull;
 use std::sync::RwLock;
 use transmission_sys;
 
@@ -13,6 +13,7 @@ use super::torrent::Torrent;
 
 // TODO expand on this to have all the options Transmission exposes
 /// Configuration for the torrent client made using a builder pattern.
+#[derive(Default)]
 pub struct ClientConfig {
     /// The name of the client application
     app_name: Option<String>,
@@ -79,7 +80,7 @@ impl ClientConfig {
 /// including adding, querying, and removing torrents.
 pub struct Client {
     // tr_session: RwLock<mem::ManuallyDrop<transmission_sys::tr_session>>,
-    tr_session: RwLock<transmission_sys::tr_session>,
+    tr_session: RwLock<NonNull<transmission_sys::tr_session>>,
 }
 
 impl Client {
@@ -112,7 +113,7 @@ impl Client {
             transmission_sys::tr_sessionSetUTPEnabled(ses, config.use_utp);
         }
         Self {
-            tr_session: RwLock::new(unsafe { *ses }),
+            tr_session: RwLock::new(NonNull::new(ses).unwrap()),
         }
     }
 
@@ -121,10 +122,10 @@ impl Client {
         let path = canonicalize(path).unwrap();
         let path = ffi::CString::new(path.to_str().unwrap()).unwrap();
 
-        let ses = &mut *self.tr_session.write().unwrap();
+        let mut ses = *self.tr_session.write().unwrap();
         let ctor;
         unsafe {
-            ctor = transmission_sys::tr_ctorNew(ses);
+            ctor = transmission_sys::tr_ctorNew(ses.as_mut());
         }
         match unsafe { transmission_sys::tr_ctorSetMetainfoFromFile(ctor, path.as_ptr()) } {
             0 => Torrent::from_ctor(ctor),
@@ -135,10 +136,10 @@ impl Client {
     /// Adds a torrent to download using a magnet link.
     pub fn add_torrent_magnet(&mut self, link: &str) -> TrResult<Torrent> {
         let link = ffi::CString::new(link).unwrap();
-        let ses = &mut *self.tr_session.write().unwrap();
+        let mut ses = *self.tr_session.write().unwrap();
         let ctor;
         unsafe {
-            ctor = transmission_sys::tr_ctorNew(ses);
+            ctor = transmission_sys::tr_ctorNew(ses.as_mut());
         }
         match unsafe { transmission_sys::tr_ctorSetMetainfoFromMagnetLink(ctor, link.as_ptr()) } {
             0 => Torrent::from_ctor(ctor),
@@ -175,18 +176,21 @@ impl Client {
 /*
 impl Drop for Client {
     fn drop(&mut self) {
-        let ses = &mut **self.tr_session.write().unwrap();
+        let ses = *self.tr_session.write().unwrap();
         unsafe {
             transmission_sys::tr_sessionClose(ses);
-            mem::ManuallyDrop::drop(&mut *self.tr_session.write().unwrap());
         }
     }
 }
 */
 
+unsafe impl std::marker::Send for Client {}
+unsafe impl std::marker::Sync for Client {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     // These both lead to the same torrent of Alpine Linux extended
     const MAGNET: &str = "magnet:?xt=urn:btih:f04905751c91af11a3745b1ce4500f4bf0de0d18&dn=alpine-extended-3.8.2-x86_64.iso&tr=http%3a%2f%2ftorrent.resonatingmedia.com%3a6969%2fannounce";
@@ -216,6 +220,18 @@ mod tests {
             .download_dir("/tmp/tr-test-file/");
         let mut t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
         println!("{:#?}", t.stats());
+    }
+
+    #[test]
+    fn thread_safe() {
+        std::fs::remove_dir_all("/tmp/tr-test-threadsafe").unwrap_or(());
+        std::fs::create_dir("/tmp/tr-test-threadsafe").unwrap();
+        let c = ClientConfig::new()
+            .app_name("testing")
+            .config_dir("/tmp/tr-test-threadsafe/")
+            .download_dir("/tmp/tr-test-threadsafe/");
+        let client = Client::new(c);
+        thread::spawn(move || client);
     }
 
     // Wait for download to finish
