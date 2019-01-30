@@ -1,7 +1,9 @@
 use std::ffi;
+use std::path::PathBuf;
 use std::ptr::{null_mut, NonNull};
 use std::sync::RwLock;
 
+use serde::ser::{SerializeStruct, Serializer};
 use serde::Serialize;
 use transmission_sys;
 
@@ -222,7 +224,7 @@ impl<'a> Torrent {
     }
 
     /// Start or resume the torrent
-    pub fn start(&mut self) {
+    pub fn start(&self) {
         let mut tor = *self.tr_torrent.write().unwrap();
         unsafe {
             transmission_sys::tr_torrentStart(tor.as_mut());
@@ -230,7 +232,7 @@ impl<'a> Torrent {
     }
 
     /// Stop (pause) the torrent
-    pub fn stop(&mut self) {
+    pub fn stop(&self) {
         let mut tor = *self.tr_torrent.write().unwrap();
         unsafe {
             transmission_sys::tr_torrentStop(tor.as_mut());
@@ -248,7 +250,7 @@ impl<'a> Torrent {
 
     /// Verify the torrent
     // TODO callback function
-    pub fn verify(&mut self) {
+    pub fn verify(&self) {
         let mut tor = *self.tr_torrent.write().unwrap();
         unsafe { transmission_sys::tr_torrentVerify(tor.as_mut(), None, null_mut()) }
     }
@@ -271,12 +273,39 @@ impl<'a> Torrent {
     }
 
     /// All the stats of the torrent as given by Transmission
-    pub fn stats(&mut self) -> TorrentStats {
+    pub fn stats(&self) -> TorrentStats {
         let mut tor = *self.tr_torrent.write().unwrap();
         unsafe { TorrentStats::from(transmission_sys::tr_torrentStatCached(tor.as_mut())) }
     }
 
     // TODO torrent metadata info
+
+    pub fn set_ratio(&self, limit: f64) {
+        let mut tor = *self.tr_torrent.write().unwrap();
+        // TODO does ratio mode need to be toggled?
+        unsafe {
+            transmission_sys::tr_torrentSetRatioLimit(tor.as_mut(), limit);
+        }
+    }
+
+    pub fn set_download_dir(&self, download_dir: PathBuf) {
+        let mut tor = *self.tr_torrent.write().unwrap();
+        let d_dir = ffi::CString::new(download_dir.to_str().unwrap()).unwrap();
+        unsafe {
+            transmission_sys::tr_torrentSetDownloadDir(tor.as_mut(), d_dir.as_ptr());
+        }
+    }
+}
+
+impl serde::ser::Serialize for Torrent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Torrent", 1)?;
+        state.serialize_field("stats", &self.stats())?;
+        state.end()
+    }
 }
 
 impl AsMut<Torrent> for Torrent {
