@@ -45,14 +45,7 @@ impl From<transmission_sys::tr_piece> for TorrentPiece {
     fn from(piece: transmission_sys::tr_piece) -> Self {
         Self {
             time_checked: NaiveDateTime::from_timestamp(piece.timeChecked, 0),
-            hash: {
-                let slice = unsafe { &*(&piece.hash[0..] as *const _ as *const [u8]) };
-                if slice[0] == 0 {
-                    String::new()
-                } else {
-                    String::from_utf8(slice.to_owned()).unwrap_or(String::new())
-                }
-            },
+            hash: piece.hash,
             priority: piece.priority,
             dnd: piece.dnd,
         }
@@ -132,7 +125,7 @@ impl From<*const transmission_sys::tr_info> for TorrentInfo {
             .map(|p| {
                 unsafe { ffi::CStr::from_ptr(*p) }
                     .to_str()
-                    .unwrap()
+                    .unwrap_or("")
                     .to_owned()
             })
             .collect(),
@@ -166,20 +159,13 @@ impl From<*const transmission_sys::tr_info> for TorrentInfo {
             file_count: info.fileCount,
             piece_size: info.pieceSize,
             piece_count: info.pieceCount,
-            hash: {
-                let slice = unsafe { &*(&info.hash[0..] as *const _ as *const [u8]) };
-                if slice[0] == 0 {
-                    String::new()
-                } else {
-                    String::from_utf8(slice.to_owned()).unwrap_or(String::new())
-                }
-            },
+            hash: info.hash,
             hash_string: {
                 let slice = unsafe { &*(&info.hashString[0..] as *const _ as *const [u8]) };
                 if slice[0] == 0 {
                     String::new()
                 } else {
-                    String::from_utf8(slice.to_owned()).unwrap()
+                    ffi::CString::from_bytes_with_nul(slice).unwrap().to_str().to_owned()
                 }
             },
             is_private: info.isPrivate,
