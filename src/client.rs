@@ -205,7 +205,8 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-magnet/")
             .download_dir("/tmp/tr-test-magnet/");
-        let mut t = Client::new(c).add_torrent_magnet(MAGNET).unwrap();
+        let t = Client::new(c).add_torrent_magnet(MAGNET).unwrap();
+        println!("{:#?}", t.info());
         println!("{:#?}", t.stats());
     }
 
@@ -218,7 +219,8 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-file/")
             .download_dir("/tmp/tr-test-file/");
-        let mut t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
+        let t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
+        println!("{:#?}", t.info());
         println!("{:#?}", t.stats());
     }
 
@@ -244,7 +246,7 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-dl/")
             .download_dir("/tmp/tr-test-dl/");
-        let mut t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
+        let t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
         t.start();
         println!("{:#?}", t.stats());
         // Run until done
