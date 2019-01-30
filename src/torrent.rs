@@ -114,7 +114,7 @@ impl<'a> Torrent {
         unsafe {
             info = transmission_sys::tr_torrentInfo(tor.as_ref());
         }
-        TorrentInfo::from(info)
+        TorrentInfo::from(unsafe { *info })
     }
 
     pub fn set_ratio(&self, limit: f64) {
