@@ -27,6 +27,26 @@ pub enum TorrentState {
     Error,
 }
 
+impl From<transmission_sys::tr_torrent_activity> for TorrentState {
+    /// Convert from the unsafe generated type to the safe library type
+    fn from(act: transmission_sys::tr_torrent_activity) -> Self {
+        match act {
+            transmission_sys::tr_torrent_activity_TR_STATUS_DOWNLOAD => TorrentState::Downloading,
+            transmission_sys::tr_torrent_activity_TR_STATUS_DOWNLOAD_WAIT => {
+                TorrentState::DownloadingWait
+            }
+            transmission_sys::tr_torrent_activity_TR_STATUS_SEED => TorrentState::Seeding,
+            transmission_sys::tr_torrent_activity_TR_STATUS_SEED_WAIT => TorrentState::SeedingWait,
+            transmission_sys::tr_torrent_activity_TR_STATUS_CHECK => TorrentState::Checking,
+            transmission_sys::tr_torrent_activity_TR_STATUS_CHECK_WAIT => {
+                TorrentState::CheckingWait
+            }
+            transmission_sys::tr_torrent_activity_TR_STATUS_STOPPED => TorrentState::Stopped,
+            _ => TorrentState::Error,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct TorrentStats {
     /// The ID of the torrent
