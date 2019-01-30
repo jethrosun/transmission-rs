@@ -120,10 +120,16 @@ impl From<transmission_sys::tr_info> for TorrentInfo {
                 .to_str()
                 .unwrap()
                 .to_owned(),
-            torrent: unsafe { ffi::CStr::from_ptr(info.torrent) }
-                .to_str()
-                .unwrap_or("")
-                .to_owned(),
+            torrent: {
+                if info.torrent.is_null() {
+                    String::new()
+                } else {
+                    unsafe { ffi::CStr::from_ptr(info.torrent) }
+                        .to_str()
+                        .unwrap_or("")
+                        .to_owned()
+                }
+            },
             webseeds: unsafe {
                 std::slice::from_raw_parts_mut(info.webseeds, info.webseedCount as usize)
             }

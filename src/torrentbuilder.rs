@@ -70,16 +70,11 @@ impl TorrentBuilder {
             let err_code =
                 transmission_sys::tr_ctorSetMetainfoFromFile(ctor, torrent_path.as_ptr());
             // TODO match error
-            let info: *mut transmission_sys::tr_info = mem::uninitialized();
-            let err_code = transmission_sys::tr_torrentParse(ctor, info);
-            dbg!(info);
-            if !info.is_null() {
-                match err_code {
-                    0 => Ok(TorrentInfo::from(*info)),
-                    _ => Err(Error::ParseErr),
-                }
-            } else {
-                Err(Error::ParseErr)
+            let mut info: transmission_sys::tr_info = mem::uninitialized();
+            let err_code = transmission_sys::tr_torrentParse(ctor, &mut info);
+            match err_code {
+                0 => Ok(TorrentInfo::from(info)),
+                _ => Err(Error::ParseErr),
             }
         }
     }
