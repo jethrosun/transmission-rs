@@ -32,29 +32,31 @@ impl TorrentBuilder {
 
     /// Consume the builder and return the created torrent or an error
     pub fn build(self) -> TrResult<TorrentInfo> {
+        let file_c_string = ffi::CString::new(self.file.to_str().unwrap()).unwrap();
+        let mut tr_trackers: Vec<transmission_sys::tr_tracker_info> = Vec::new();
+        let meta_builder;
+        let tr_comment = if let Some(cmt) = self.comment {
+            ffi::CString::new(cmt).unwrap()
+        } else {
+            ffi::CString::new("").unwrap()
+        };
+        /* Dump the trackers into a struct transmission can understand */
+        let mut i = 0;
+        for tracker in self.trackers {
+            let tracker_announce = ffi::CString::new(format!("{}/announce", tracker)).unwrap();
+            let tracker_scrape = ffi::CString::new(format!("{}/scrape", tracker)).unwrap();
+            tr_trackers.push(transmission_sys::tr_tracker_info {
+                tier: i as i32,
+                announce: tracker_announce.into_raw(),
+                scrape: tracker_scrape.into_raw(),
+                id: i as u32,
+            });
+            i += 1;
+        }
+        /* torrent_path is the output file that will become the torrent */
+        let torrent_path = ffi::CString::new(format!("{}.torrent", self.file.display())).unwrap();
         unsafe {
-            let file_c_string = ffi::CString::new(self.file.to_str().unwrap()).unwrap();
-            let meta_builder = transmission_sys::tr_metaInfoBuilderCreate(file_c_string.as_ptr());
-            let mut tr_trackers: Vec<transmission_sys::tr_tracker_info> = Vec::new();
-            let tr_comment = if let Some(cmt) = self.comment {
-                ffi::CString::new(cmt).unwrap()
-            } else {
-                ffi::CString::new("").unwrap()
-            };
-            let mut i = 0;
-            // TODO better url handling
-            for tracker in self.trackers {
-                let tracker_announce = ffi::CString::new(format!("{}/announce", tracker)).unwrap();
-                let tracker_scrape = ffi::CString::new(format!("{}/scrape", tracker)).unwrap();
-                tr_trackers.push(transmission_sys::tr_tracker_info {
-                    tier: i as i32,
-                    announce: tracker_announce.into_raw(),
-                    scrape: tracker_scrape.into_raw(),
-                    id: i as u32,
-                });
-                i += 1;
-            }
-
+            meta_builder = transmission_sys::tr_metaInfoBuilderCreate(file_c_string.as_ptr());
             transmission_sys::tr_makeMetaInfo(
                 meta_builder,
                 ptr::null(),
@@ -65,15 +67,12 @@ impl TorrentBuilder {
             );
 
             let ctor = transmission_sys::tr_ctorNew(ptr::null());
-            let torrent_path =
-                ffi::CString::new(format!("{}.torrent", self.file.display())).unwrap();
-            let err_code =
-                transmission_sys::tr_ctorSetMetainfoFromFile(ctor, torrent_path.as_ptr());
-            // TODO match error
             let mut info: transmission_sys::tr_info = mem::uninitialized();
-            let err_code = transmission_sys::tr_torrentParse(ctor, &mut info);
-            match err_code {
-                0 => Ok(TorrentInfo::from(info)),
+            match transmission_sys::tr_ctorSetMetainfoFromFile(ctor, torrent_path.as_ptr()) {
+                0 => match transmission_sys::tr_torrentParse(ctor, &mut info) {
+                    0 => Ok(TorrentInfo::from(info)),
+                    _ => Err(Error::ParseErr),
+                },
                 _ => Err(Error::ParseErr),
             }
         }
