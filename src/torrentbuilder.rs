@@ -79,25 +79,25 @@ impl TorrentBuilder {
     }
 
     /// Set the file or folder the torrent is serving
-    pub fn file(mut self, file: &str) -> io::Result<Self> {
+    pub fn set_file(mut self, file: &str) -> io::Result<Self> {
         self.file = PathBuf::from(file).canonicalize()?;
         Ok(self)
     }
 
     /// Add a tracker to the torrent
-    pub fn tracker(mut self, tracker: &str) -> Self {
+    pub fn set_tracker(mut self, tracker: &str) -> Self {
         self.trackers.push(tracker.to_owned());
         self
     }
 
     /// Set the comment of the torrent
-    pub fn comment(mut self, comment: &str) -> Self {
+    pub fn set_comment(mut self, comment: &str) -> Self {
         self.comment = Some(comment.to_owned());
         self
     }
 
     /// Add a webseed to the torrent
-    pub fn webseed(mut self, webseed: &str) -> Self {
+    pub fn set_webseed(mut self, webseed: &str) -> Self {
         if self.webseeds.is_some() {
             let mut wbs = self.webseeds.unwrap().clone();
             wbs.push(webseed.to_owned());
@@ -117,10 +117,10 @@ mod tests {
         let file_to_build_from = String::from("./Cargo.toml");
         let tracker_url = String::from("udp://tracker.opentrackr.org:1337");
         let info = TorrentBuilder::new()
-            .file(&file_to_build_from)
+            .set_file(&file_to_build_from)
             .unwrap()
-            .tracker(&tracker_url)
-            .comment("Test torrent")
+            .set_tracker(&tracker_url)
+            .set_comment("Test torrent")
             .build()
             .unwrap();
         println!("{:#?}", info);
