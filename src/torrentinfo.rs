@@ -101,9 +101,8 @@ pub struct TorrentInfo {
     is_folder: bool,
 }
 
-impl From<*const transmission_sys::tr_info> for TorrentInfo {
-    fn from(info: *const transmission_sys::tr_info) -> Self {
-        let info = unsafe { *info };
+impl From<transmission_sys::tr_info> for TorrentInfo {
+    fn from(info: transmission_sys::tr_info) -> Self {
         Self {
             total_size: info.totalSize,
             original_name: unsafe { ffi::CStr::from_ptr(info.originalName) }
@@ -114,10 +113,16 @@ impl From<*const transmission_sys::tr_info> for TorrentInfo {
                 .to_str()
                 .unwrap()
                 .to_owned(),
-            torrent: unsafe { ffi::CStr::from_ptr(info.torrent) }
-                .to_str()
-                .unwrap()
-                .to_owned(),
+            torrent: {
+                if info.torrent.is_null() {
+                    String::new()
+                } else {
+                    unsafe { ffi::CStr::from_ptr(info.torrent) }
+                        .to_str()
+                        .unwrap_or("")
+                        .to_owned()
+                }
+            },
             webseeds: unsafe {
                 std::slice::from_raw_parts_mut(info.webseeds, info.webseedCount as usize)
             }
