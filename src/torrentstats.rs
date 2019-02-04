@@ -1,5 +1,3 @@
-use std::ffi;
-
 use chrono::prelude::NaiveDateTime;
 use serde::Serialize;
 use transmission_sys;

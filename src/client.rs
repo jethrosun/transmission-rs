@@ -39,7 +39,7 @@ impl ClientConfig {
             config_dir: None,
             download_dir: None,
             use_utp: false,
-            log_level: 0,
+            log_level: 1,
         }
     }
 
@@ -81,6 +81,7 @@ impl ClientConfig {
 pub struct Client {
     // tr_session: RwLock<mem::ManuallyDrop<transmission_sys::tr_session>>,
     tr_session: RwLock<NonNull<transmission_sys::tr_session>>,
+    closed: bool,
 }
 
 impl Client {
@@ -114,6 +115,7 @@ impl Client {
         }
         Self {
             tr_session: RwLock::new(NonNull::new(ses).unwrap()),
+            closed: false,
         }
     }
 
@@ -166,23 +168,24 @@ impl Client {
         unimplemented!()
     }
 
-    /// Closes the client ending the session.
-    /// Consumes the `Client` causing it to `Drop`
-    pub fn close(self) {
-        return;
-    }
-}
-
-/*
-impl Drop for Client {
-    fn drop(&mut self) {
+    /// Gracefully closes the client ending the session.
+    /// Always call this otherwise the session will be killed instead of closed.
+    pub fn close(mut self) {
         let ses = *self.tr_session.write().unwrap();
+        self.closed = true;
         unsafe {
-            transmission_sys::tr_sessionClose(ses);
+            transmission_sys::tr_sessionClose(ses.as_ptr());
         }
     }
 }
-*/
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        if !self.closed {
+            panic!("Dropped an unclosed Client session. Please call Client.close().")
+        }
+    }
+}
 
 unsafe impl std::marker::Send for Client {}
 unsafe impl std::marker::Sync for Client {}
@@ -205,9 +208,11 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-magnet/")
             .download_dir("/tmp/tr-test-magnet/");
-        let t = Client::new(c).add_torrent_magnet(MAGNET).unwrap();
+        let mut c = Client::new(c);
+        let t = c.add_torrent_magnet(MAGNET).unwrap();
         println!("{:#?}", t.info());
         println!("{:#?}", t.stats());
+        c.close();
     }
 
     // Try to add by torrent file
@@ -219,9 +224,11 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-file/")
             .download_dir("/tmp/tr-test-file/");
-        let t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
+        let mut c = Client::new(c);
+        let t = c.add_torrent_file(FILE_PATH).unwrap();
         println!("{:#?}", t.info());
         println!("{:#?}", t.stats());
+        c.close();
     }
 
     #[test]
@@ -233,7 +240,7 @@ mod tests {
             .config_dir("/tmp/tr-test-threadsafe/")
             .download_dir("/tmp/tr-test-threadsafe/");
         let client = Client::new(c);
-        thread::spawn(move || client);
+        thread::spawn(move || client.close());
     }
 
     // Wait for download to finish
@@ -246,12 +253,14 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-dl/")
             .download_dir("/tmp/tr-test-dl/");
-        let t = Client::new(c).add_torrent_file(FILE_PATH).unwrap();
+        let mut c = Client::new(c);
+        let t = c.add_torrent_file(FILE_PATH).unwrap();
         t.start();
         println!("{:#?}", t.stats());
         // Run until done
         while t.stats().percent_complete < 1.0 {
             print!("{:#?}\r", t.stats().percent_complete);
         }
+        c.close();
     }
 }

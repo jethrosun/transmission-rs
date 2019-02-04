@@ -36,7 +36,7 @@ impl From<transmission_sys::tr_file> for TorrentFile {
 #[derive(Debug, Serialize)]
 pub struct TorrentPiece {
     time_checked: NaiveDateTime,
-    hash: String,
+    hash: [u8; 20],
     priority: i8,
     dnd: i8,
 }
@@ -95,7 +95,7 @@ pub struct TorrentInfo {
     file_count: u32,
     piece_size: u32,
     piece_count: u32,
-    hash: String,
+    hash: [u8; 20],
     hash_string: String,
     is_private: bool,
     is_folder: bool,
@@ -170,7 +170,11 @@ impl From<transmission_sys::tr_info> for TorrentInfo {
                 if slice[0] == 0 {
                     String::new()
                 } else {
-                    ffi::CString::from_bytes_with_nul(slice).unwrap().to_str().to_owned()
+                    ffi::CStr::from_bytes_with_nul(slice)
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_owned()
                 }
             },
             is_private: info.isPrivate,

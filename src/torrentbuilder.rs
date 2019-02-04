@@ -10,6 +10,7 @@ use crate::error::{Error, TrResult};
 use crate::torrentinfo::TorrentInfo;
 
 /// Used to create a new torrent in a builder pattern
+#[derive(Default)]
 pub struct TorrentBuilder {
     comment: Option<String>,
     trackers: Vec<String>,

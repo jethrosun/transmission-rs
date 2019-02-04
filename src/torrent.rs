@@ -4,13 +4,12 @@ use std::ptr::{null_mut, NonNull};
 use std::sync::RwLock;
 
 use serde::ser::{SerializeStruct, Serializer};
-use serde::Serialize;
 use transmission_sys;
 
 use crate::error::{Error, TrResult};
 use crate::torrentbuilder::TorrentBuilder;
 use crate::torrentinfo::TorrentInfo;
-use crate::torrentstats::{TorrentState, TorrentStats};
+use crate::torrentstats::TorrentStats;
 
 // const MAGIC_NUMBER: u32 = 95549;
 
