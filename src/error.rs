@@ -1,5 +1,8 @@
 //! Module containing the various types used in the library
 
+use std::error;
+use std::fmt;
+
 use serde::Serialize;
 
 use transmission_sys;
@@ -24,6 +27,16 @@ pub enum Error {
     StatTrackerWarn,
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // I'm lazy so this is the same as the debug output
+        write!(f, "{:?}", self)
+    }
+}
+
+impl error::Error for Error {}
+
+// TODO more from declarations
 impl From<transmission_sys::tr_stat_errtype> for Error {
     fn from(staterr: transmission_sys::tr_stat_errtype) -> Self {
         match staterr {

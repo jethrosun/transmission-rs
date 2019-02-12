@@ -8,5 +8,6 @@ pub mod torrentstats;
 
 pub use crate::client::Client;
 pub use crate::client::ClientConfig;
+pub use crate::error::Error;
 pub use crate::torrent::Torrent;
 pub use crate::torrentbuilder::TorrentBuilder;
