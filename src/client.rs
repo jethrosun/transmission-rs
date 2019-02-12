@@ -13,7 +13,6 @@ use super::torrent::Torrent;
 
 // TODO expand on this to have all the options Transmission exposes
 /// Configuration for the torrent client made using a builder pattern.
-#[derive(Default)]
 pub struct ClientConfig {
     /// The name of the client application
     app_name: Option<String>,
@@ -23,12 +22,8 @@ pub struct ClientConfig {
     download_dir: Option<PathBuf>,
     /// Whether or not to use UTP
     use_utp: bool,
-    /// What level of logging to use
-    /// - 0: None
-    /// - 1: Error
-    /// - 2: Warnings
-    /// - 3: Info
-    log_level: u32,
+    /// What level of logging to use.
+    log_level: transmission_sys::tr_log_level,
 }
 
 impl ClientConfig {
@@ -39,38 +34,37 @@ impl ClientConfig {
             config_dir: None,
             download_dir: None,
             use_utp: false,
-            log_level: 1,
+            log_level: transmission_sys::tr_log_level::TR_LOG_ERROR,
         }
     }
 
-    /// Set the application's name
+    /// Set the application's name.
     pub fn app_name(mut self, name: &str) -> Self {
         self.app_name = Some(String::from(name));
         self
     }
 
-    /// Set the configuration directory path
+    /// Set the configuration directory path.
     pub fn config_dir(mut self, dir: &str) -> Self {
         self.config_dir = Some(canonicalize(dir).unwrap());
         self
     }
 
-    /// Set the download directory path
+    /// Set the download directory path.
     pub fn download_dir(mut self, dir: &str) -> Self {
         self.download_dir = Some(canonicalize(dir).unwrap());
         self
     }
 
-    /// Toggle using UTP
-    /// UTP can cause issues on some systems so this defaults to `false`.
+    /// Toggle using UTP.
+    /// Defaults to `true`.
     pub fn use_utp(mut self, utp: bool) -> Self {
         self.use_utp = utp;
         self
     }
 
-    /// Set the log level
-    /// This defaults to 0 (none).
-    pub fn log_level(mut self, level: u32) -> Self {
+    /// Set the log level.
+    pub fn log_level(mut self, level: transmission_sys::tr_log_level) -> Self {
         self.log_level = level;
         self
     }
@@ -169,8 +163,8 @@ impl Client {
     }
 
     /// Gracefully closes the client ending the session.
-    /// Always call this otherwise the session will be killed instead of closed.
-    pub fn close(mut self) {
+    /// Always call this otherwise the client will panic on drop.
+    pub fn close(&mut self) {
         let ses = *self.tr_session.write().unwrap();
         self.closed = true;
         unsafe {
@@ -239,7 +233,7 @@ mod tests {
             .app_name("testing")
             .config_dir("/tmp/tr-test-threadsafe/")
             .download_dir("/tmp/tr-test-threadsafe/");
-        let client = Client::new(c);
+        let mut client = Client::new(c);
         thread::spawn(move || client.close());
     }
 

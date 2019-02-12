@@ -27,11 +27,10 @@ pub enum Error {
 impl From<transmission_sys::tr_stat_errtype> for Error {
     fn from(staterr: transmission_sys::tr_stat_errtype) -> Self {
         match staterr {
-            transmission_sys::tr_stat_errtype_TR_STAT_OK => Error::NoError,
-            transmission_sys::tr_stat_errtype_TR_STAT_LOCAL_ERROR => Error::StatLocal,
-            transmission_sys::tr_stat_errtype_TR_STAT_TRACKER_ERROR => Error::StatTracker,
-            transmission_sys::tr_stat_errtype_TR_STAT_TRACKER_WARNING => Error::StatTrackerWarn,
-            _ => Error::NoError,
+            transmission_sys::tr_stat_errtype::TR_STAT_OK => Error::NoError,
+            transmission_sys::tr_stat_errtype::TR_STAT_LOCAL_ERROR => Error::StatLocal,
+            transmission_sys::tr_stat_errtype::TR_STAT_TRACKER_ERROR => Error::StatTracker,
+            transmission_sys::tr_stat_errtype::TR_STAT_TRACKER_WARNING => Error::StatTrackerWarn,
         }
     }
 }

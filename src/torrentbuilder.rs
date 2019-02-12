@@ -71,7 +71,7 @@ impl TorrentBuilder {
             let mut info: transmission_sys::tr_info = mem::uninitialized();
             match transmission_sys::tr_ctorSetMetainfoFromFile(ctor, torrent_path.as_ptr()) {
                 0 => match transmission_sys::tr_torrentParse(ctor, &mut info) {
-                    0 => Ok(TorrentInfo::from(info)),
+                    transmission_sys::tr_parse_result::TR_PARSE_OK => Ok(TorrentInfo::from(info)),
                     _ => Err(Error::ParseErr),
                 },
                 _ => Err(Error::ParseErr),

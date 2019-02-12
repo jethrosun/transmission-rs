@@ -28,10 +28,11 @@ impl<'a> Torrent {
             tor = transmission_sys::tr_torrentNew(ctor, &mut error, &mut dupli);
         }
         // Match the possible errors from torrentNew
-        match error as u32 {
-            transmission_sys::tr_parse_result_TR_PARSE_ERR => Err(Error::ParseErr),
-            transmission_sys::tr_parse_result_TR_PARSE_DUPLICATE => Err(Error::ParseDuplicate),
-            transmission_sys::tr_parse_result_TR_PARSE_OK => {
+        // TODO improve matching using tr_parse_result enum
+        match error {
+            1 => Err(Error::ParseErr),
+            2 => Err(Error::ParseDuplicate),
+            0 => {
                 let t = Self {
                     tr_torrent: RwLock::new(NonNull::new(tor).unwrap()),
                 };
