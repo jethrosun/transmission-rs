@@ -118,7 +118,7 @@ impl TorrentBuilder {
 
     /// Set all the webseeds on the torrent, replacing existing.
     pub fn set_webseeds(mut self, webseeds: Vec<&str>) -> Self {
-        if webseeds.len() > 0 {
+        if webseeds.is_empty() {
             self.webseeds = Some(webseeds.iter().map(|s| String::from(*s)).collect());
         } else {
             self.webseeds = None;
@@ -131,7 +131,6 @@ impl TorrentBuilder {
 mod tests {
     use super::*;
     use crate::Torrent;
-    use std::path::PathBuf;
     #[test]
     fn build_torrent() {
         let file_to_build_from = String::from("./Cargo.toml");
@@ -144,7 +143,6 @@ mod tests {
             .set_comment("Test torrent")
             .build()
             .expect("Failed to build torrent");
-        let path = PathBuf::from(dbg!(path));
         let info = Torrent::parse_torrent_file(&path).unwrap();
         dbg!(info);
         std::fs::remove_file(path).unwrap();

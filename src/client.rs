@@ -13,6 +13,7 @@ use super::torrent::Torrent;
 
 // TODO expand on this to have all the options Transmission exposes
 /// Configuration for the torrent client made using a builder pattern.
+#[derive(Default)]
 pub struct ClientConfig {
     /// The name of the client application
     app_name: Option<String>,
@@ -23,7 +24,7 @@ pub struct ClientConfig {
     /// Whether or not to use UTP
     use_utp: bool,
     /// What level of logging to use.
-    log_level: transmission_sys::tr_log_level,
+    log_level: i64,
 }
 
 impl ClientConfig {
@@ -33,8 +34,8 @@ impl ClientConfig {
             app_name: None,
             config_dir: None,
             download_dir: None,
-            use_utp: false,
-            log_level: transmission_sys::tr_log_level::TR_LOG_ERROR,
+            use_utp: true,
+            log_level: 1,
         }
     }
 
@@ -64,14 +65,21 @@ impl ClientConfig {
     }
 
     /// Set the log level.
-    pub fn log_level(mut self, level: transmission_sys::tr_log_level) -> Self {
+    /// 0 - No logging
+    /// 1 - Errors
+    /// 2 - Info
+    /// 3 - Debug
+    /// 4 - Everything
+    /// Defaults to 1
+    pub fn log_level(mut self, level: i64) -> Self {
         self.log_level = level;
         self
     }
 }
 
 /// Interface into the major functions of Transmission
-/// including adding, querying, and removing torrents.
+/// including adding, and removing torrents.
+/// The `Client` does not keep track of the created torrents itself.
 pub struct Client {
     // tr_session: RwLock<mem::ManuallyDrop<transmission_sys::tr_session>>,
     tr_session: RwLock<NonNull<transmission_sys::tr_session>>,
@@ -94,12 +102,17 @@ impl Client {
 
         let ses;
         unsafe {
-            // Set log level
-            transmission_sys::tr_logSetLevel(config.log_level);
-
             let mut set: transmission_sys::tr_variant = mem::uninitialized();
             transmission_sys::tr_variantInitDict(&mut set, 0);
             transmission_sys::tr_sessionLoadSettings(&mut set, c_dir.as_ptr(), app_name.as_ptr());
+
+            // Set log level
+            transmission_sys::tr_variantDictAddInt(
+                &mut set,
+                transmission_sys::TR_KEY_message_level as usize,
+                config.log_level,
+            );
+
             ses = transmission_sys::tr_sessionInit(c_dir.as_ptr(), false, &mut set);
             transmission_sys::tr_variantFree(&mut set);
 
@@ -141,25 +154,6 @@ impl Client {
             0 => Torrent::from_ctor(ctor),
             _ => Err(Error::Unknown),
         }
-    }
-
-    /// Returns a list of current torrents.
-    pub fn list_torrents(&self) -> Vec<TrResult<&mut Torrent>> {
-        /*
-        let ses = &mut **self.tr_session.write().unwrap();
-        let tors: *mut *mut transmission_sys::tr_torrent;
-        let mut err = 0;
-        let mut len = 0;
-        unsafe {
-            tors = transmission_sys::tr_sessionGetTorrents(ses, &mut err);
-            len =
-            Vec::from_raw_parts(tors, len, len)
-                .iter()
-                .map(|e| Torrent::from_tr_torrent(*e))
-                .collect()
-        }
-        */
-        unimplemented!()
     }
 
     /// Gracefully closes the client ending the session.
