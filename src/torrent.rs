@@ -1,6 +1,7 @@
 use std::ffi;
+use std::mem;
 use std::path::PathBuf;
-use std::ptr::{null_mut, NonNull};
+use std::ptr::{null, null_mut, NonNull};
 use std::sync::RwLock;
 
 use serde::ser::{SerializeStruct, Serializer};
@@ -46,6 +47,21 @@ impl<'a> Torrent {
         Ok(Self {
             tr_torrent: RwLock::new(NonNull::new(tr_torrent).unwrap()),
         })
+    }
+
+    pub fn parse_torrent_file(path: &str) -> TrResult<TorrentInfo> {
+        let path = ffi::CString::new(path).unwrap();
+        unsafe {
+            let ctor = transmission_sys::tr_ctorNew(null());
+            let mut info: transmission_sys::tr_info = mem::uninitialized();
+            match transmission_sys::tr_ctorSetMetainfoFromFile(ctor, path.as_ptr()) {
+                0 => match transmission_sys::tr_torrentParse(ctor, &mut info) {
+                    transmission_sys::tr_parse_result::TR_PARSE_OK => Ok(TorrentInfo::from(info)),
+                    _ => Err(Error::ParseErr),
+                },
+                _ => Err(Error::ParseErr),
+            }
+        }
     }
 
     /// Alias to `TorrentBuilder::new()`
@@ -119,7 +135,7 @@ impl<'a> Torrent {
 
     pub fn set_ratio(&self, limit: f64) {
         let mut tor = *self.tr_torrent.write().unwrap();
-        // TODO does ratio mode need to be toggled?
+        // Does ratio mode need to be toggled?
         unsafe {
             transmission_sys::tr_torrentSetRatioLimit(tor.as_mut(), limit);
         }

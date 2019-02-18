@@ -143,7 +143,7 @@ impl Client {
         }
     }
 
-    /// Returns a list of current torrents
+    /// Returns a list of current torrents.
     pub fn list_torrents(&self) -> Vec<TrResult<&mut Torrent>> {
         /*
         let ses = &mut **self.tr_session.write().unwrap();
@@ -204,8 +204,8 @@ mod tests {
             .download_dir("/tmp/tr-test-magnet/");
         let mut c = Client::new(c);
         let t = c.add_torrent_magnet(MAGNET).unwrap();
-        println!("{:#?}", t.info());
-        println!("{:#?}", t.stats());
+        dbg!(t.info());
+        dbg!(t.stats());
         c.close();
     }
 
@@ -220,8 +220,8 @@ mod tests {
             .download_dir("/tmp/tr-test-file/");
         let mut c = Client::new(c);
         let t = c.add_torrent_file(FILE_PATH).unwrap();
-        println!("{:#?}", t.info());
-        println!("{:#?}", t.stats());
+        dbg!(t.info());
+        dbg!(t.stats());
         c.close();
     }
 
@@ -250,7 +250,7 @@ mod tests {
         let mut c = Client::new(c);
         let t = c.add_torrent_file(FILE_PATH).unwrap();
         t.start();
-        println!("{:#?}", t.stats());
+        dbg!(t.stats());
         // Run until done
         while t.stats().percent_complete < 1.0 {
             print!("{:#?}\r", t.stats().percent_complete);

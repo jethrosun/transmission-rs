@@ -4,8 +4,6 @@ use chrono::prelude::NaiveDateTime;
 use serde::Serialize;
 use transmission_sys;
 
-// TODO fix hash fields they tend to be broken for unknown reasons
-
 #[derive(Debug, Serialize)]
 pub struct TorrentFile {
     length: u64,
