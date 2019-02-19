@@ -1,4 +1,4 @@
-//! Module containing the various types used in the library
+//! Module containing the various Error types used in the library.
 
 use std::error;
 use std::fmt;
@@ -8,23 +8,32 @@ use serde::Serialize;
 use transmission_sys;
 
 /// Different kinds of errors that can be produced by Transmission
+///
+/// This enum acts as a general wrapper for errors. Most errors produced by
+/// `transmission-sys` can be converted to this using `Error::From`.
 #[derive(Debug, Serialize)]
 pub enum Error {
     /// A general state of non-error.
-    /// If this is is ever unwrapped from a Result please file a bug report.
+    /// If this is is ever the `Err` of a `Result` please file a bug report.
     NoError,
-    /// For all errors with unknown causes
+    /// For all errors with unknown causes.
     Unknown,
-    // Error in parsing a torrent
+    /// An error occured in file I/O.
+    IOError,
+    /// Error in parsing a torrent.
     ParseErr,
-    // When parsing a torrent if it is a duplicate
+    /// When parsing a torrent if it is a duplicate.
     ParseDuplicate,
-    /// Local error when getting a torrent's stats
+    /// Local error when getting a torrent's stats.
     StatLocal,
-    /// Tracker error when getting a torrent's stats
+    /// Tracker error when getting a torrent's stats.
     StatTracker,
-    /// Tracker warning when getting a torrent's stats
+    /// Tracker warning when getting a torrent's stats.
     StatTrackerWarn,
+    /// An error with the URL when getting metainfo.
+    MakeMetaUrl,
+    /// Getting metainfo was cancelled.
+    MakeMetaCancelled,
 }
 
 impl fmt::Display for Error {
@@ -36,7 +45,6 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {}
 
-// TODO more from declarations
 impl From<transmission_sys::tr_stat_errtype> for Error {
     fn from(staterr: transmission_sys::tr_stat_errtype) -> Self {
         match staterr {
@@ -48,5 +56,53 @@ impl From<transmission_sys::tr_stat_errtype> for Error {
     }
 }
 
-/// Simple type for all results that use `Error`
+impl From<transmission_sys::tr_metainfo_builder_err> for Error {
+    fn from(builderr: transmission_sys::tr_metainfo_builder_err) -> Self {
+        match builderr {
+            transmission_sys::tr_metainfo_builder_err::TR_MAKEMETA_OK => Error::NoError,
+            transmission_sys::tr_metainfo_builder_err::TR_MAKEMETA_URL => Error::MakeMetaUrl,
+            transmission_sys::tr_metainfo_builder_err::TR_MAKEMETA_CANCELLED => {
+                Error::MakeMetaCancelled
+            }
+            transmission_sys::tr_metainfo_builder_err::TR_MAKEMETA_IO_READ => Error::IOError,
+            transmission_sys::tr_metainfo_builder_err::TR_MAKEMETA_IO_WRITE => Error::IOError,
+        }
+    }
+}
+
+impl From<transmission_sys::tr_parse_result> for Error {
+    fn from(parseerr: transmission_sys::tr_parse_result) -> Self {
+        match parseerr {
+            transmission_sys::tr_parse_result::TR_PARSE_OK => Error::NoError,
+            transmission_sys::tr_parse_result::TR_PARSE_ERR => Error::ParseErr,
+            transmission_sys::tr_parse_result::TR_PARSE_DUPLICATE => Error::ParseDuplicate,
+        }
+    }
+}
+
+// Let's us handle the way parse errors can be returned more specifically
+pub(crate) type parse_int = i32;
+
+impl From<parse_int> for Error {
+    fn from(int: parse_int) -> Self {
+        match int {
+            0 => Error::NoError,
+            1 => Error::ParseErr,
+            2 => Error::ParseDuplicate,
+            _ => Error::Unknown,
+        }
+    }
+}
+
+impl Error {
+    /// Converts the `Error` to a `TrResult` where `NoError` causes `Ok`.
+    pub fn as_result(self) -> TrResult<()> {
+        match self {
+            Error::NoError => Ok(()),
+            x => Err(x),
+        }
+    }
+}
+
+/// Simple type for all results that use `Error`.
 pub type TrResult<T> = Result<T, Error>;

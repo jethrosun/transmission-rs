@@ -39,37 +39,37 @@ impl ClientConfig {
         }
     }
 
-    /// Set the application's name.
+    /// Set the application's name. Must be set.
     pub fn app_name(mut self, name: &str) -> Self {
         self.app_name = Some(String::from(name));
         self
     }
 
-    /// Set the configuration directory path.
+    /// Set the configuration directory path. Must be set.
     pub fn config_dir(mut self, dir: &str) -> Self {
         self.config_dir = Some(canonicalize(dir).unwrap());
         self
     }
 
-    /// Set the download directory path.
+    /// Set the download directory path. Must be set.
     pub fn download_dir(mut self, dir: &str) -> Self {
         self.download_dir = Some(canonicalize(dir).unwrap());
         self
     }
 
-    /// Toggle using UTP.
-    /// Defaults to `true`.
+    /// Toggle using UTP. Defaults to `true`.
     pub fn use_utp(mut self, utp: bool) -> Self {
         self.use_utp = utp;
         self
     }
 
     /// Set the log level.
-    /// 0 - No logging
-    /// 1 - Errors
-    /// 2 - Info
-    /// 3 - Debug
-    /// 4 - Everything
+    ///
+    /// - 0: No logging
+    /// - 1: Errors
+    /// - 2: Info
+    /// - 3: Debug
+    /// - 4: Everything
     /// Defaults to 1
     pub fn log_level(mut self, level: i64) -> Self {
         self.log_level = level;
@@ -79,7 +79,37 @@ impl ClientConfig {
 
 /// Interface into the major functions of Transmission
 /// including adding, and removing torrents.
+///
 /// The `Client` does not keep track of the created torrents itself.
+///
+/// Example of creating a session and adding a torrent and waiting for it to complete.
+/// ```no_run
+/// use transmission::{ ClientConfig, Client};
+///
+/// # let test_dir = "/tmp/tr-test-long";
+/// # let config_dir = test_dir;
+/// # let download_dir = test_dir;
+/// let file_path = "./alpine.torrent";
+///
+/// # std::fs::create_dir(test_dir).unwrap();
+///
+/// let c = ClientConfig::new()
+///    .app_name("testing")
+///    .config_dir(config_dir)
+///    .download_dir(download_dir);
+/// let mut c = Client::new(c);
+///
+/// let t = c.add_torrent_file(file_path).unwrap();
+/// t.start();
+///
+/// // Run until done
+/// while t.stats().percent_complete < 1.0 {
+///     print!("{:#?}\r", t.stats().percent_complete);
+/// }
+/// c.close();
+///
+/// # std::fs::remove_dir_all(test_dir).unwrap();
+/// ```
 pub struct Client {
     // tr_session: RwLock<mem::ManuallyDrop<transmission_sys::tr_session>>,
     tr_session: RwLock<NonNull<transmission_sys::tr_session>>,
@@ -87,8 +117,9 @@ pub struct Client {
 }
 
 impl Client {
-    /// Creates a new `Client` after initializing the session.
-    /// Takes in a path to the configuration directory.
+    /// Creates a new `Client` and initializes the session.
+    ///
+    /// Takes a `ClientConfig` with the populated options.
     pub fn new(config: ClientConfig) -> Self {
         // Change things into the types needed
         let c_dir = config.config_dir.expect("Configuration directory not set!");
@@ -106,7 +137,7 @@ impl Client {
             transmission_sys::tr_variantInitDict(&mut set, 0);
             transmission_sys::tr_sessionLoadSettings(&mut set, c_dir.as_ptr(), app_name.as_ptr());
 
-            // Set log level
+            // Set the log level
             transmission_sys::tr_variantDictAddInt(
                 &mut set,
                 transmission_sys::TR_KEY_message_level as usize,
@@ -126,7 +157,32 @@ impl Client {
         }
     }
 
-    /// Adds a torrent using either a path or URL to a torrent file.
+    /// Adds a torrent using a torrent file.
+    ///
+    /// Takes the path to the torrent file on the disk.
+    ///
+    /// ```
+    /// use transmission::{ ClientConfig, Client};
+    ///
+    /// # let test_dir = "/tmp/tr-test-file";
+    /// # let config_dir = test_dir;
+    /// # let download_dir = test_dir;
+    /// let file_path = "./alpine.torrent";
+    ///
+    /// # std::fs::create_dir(test_dir).unwrap();
+    ///
+    /// let c = ClientConfig::new()
+    ///    .app_name("testing")
+    ///    .config_dir(config_dir)
+    ///    .download_dir(download_dir);
+    /// let mut c = Client::new(c);
+    ///
+    /// let t = c.add_torrent_file(file_path).unwrap();
+    ///
+    /// c.close();
+    ///
+    /// # std::fs::remove_dir_all(test_dir).unwrap();
+    /// ```
     pub fn add_torrent_file(&mut self, path: &str) -> TrResult<Torrent> {
         let path = canonicalize(path).unwrap();
         let path = ffi::CString::new(path.to_str().unwrap()).unwrap();
@@ -142,7 +198,31 @@ impl Client {
         }
     }
 
-    /// Adds a torrent to download using a magnet link.
+    /// Adds a torrent using a magnet link.
+    ///
+    /// Takes the magnet URI of the torrent.
+    ///
+    /// ```
+    /// use transmission::{ ClientConfig, Client};
+    ///
+    /// # let test_dir = "/tmp/tr-test-magnet";
+    /// # let config_dir = test_dir;
+    /// # let download_dir = test_dir;
+    ///
+    /// # let magnet_uri = "magnet:?xt=urn:btih:f04905751c91af11a3745b1ce4500f4bf0de0d18&dn=alpine-extended-3.8.2-x86_64.iso&tr=http%3a%2f%2ftorrent.resonatingmedia.com%3a6969%2fannounce";
+    /// # std::fs::create_dir(test_dir).unwrap();
+    ///
+    /// let c = ClientConfig::new()
+    ///    .app_name("testing")
+    ///    .config_dir(config_dir)
+    ///    .download_dir(download_dir);
+    /// let mut c = Client::new(c);
+    ///
+    /// let t = c.add_torrent_magnet(magnet_uri).unwrap();
+    ///
+    /// c.close();
+    ///
+    /// # std::fs::remove_dir_all(test_dir).unwrap();
     pub fn add_torrent_magnet(&mut self, link: &str) -> TrResult<Torrent> {
         let link = ffi::CString::new(link).unwrap();
         let mut ses = *self.tr_session.write().unwrap();
@@ -157,7 +237,8 @@ impl Client {
     }
 
     /// Gracefully closes the client ending the session.
-    /// Always call this otherwise the client will panic on drop.
+    ///
+    /// Always call this otherwise the client will `panic!` on drop in order to prevent issues.
     pub fn close(&mut self) {
         let ses = *self.tr_session.write().unwrap();
         self.closed = true;
@@ -183,72 +264,20 @@ mod tests {
     use super::*;
     use std::thread;
 
-    // These both lead to the same torrent of Alpine Linux extended
-    const MAGNET: &str = "magnet:?xt=urn:btih:f04905751c91af11a3745b1ce4500f4bf0de0d18&dn=alpine-extended-3.8.2-x86_64.iso&tr=http%3a%2f%2ftorrent.resonatingmedia.com%3a6969%2fannounce";
-    const FILE_PATH: &str = "./alpine.torrent";
-
-    // Try to add by magnet link
-    #[test]
-    fn add_torrent_magnet() {
-        std::fs::remove_dir_all("/tmp/tr-test-magnet").unwrap_or(());
-        std::fs::create_dir("/tmp/tr-test-magnet").unwrap();
-        let c = ClientConfig::new()
-            .app_name("testing")
-            .config_dir("/tmp/tr-test-magnet/")
-            .download_dir("/tmp/tr-test-magnet/");
-        let mut c = Client::new(c);
-        let t = c.add_torrent_magnet(MAGNET).unwrap();
-        dbg!(t.info());
-        dbg!(t.stats());
-        c.close();
-    }
-
-    // Try to add by torrent file
-    #[test]
-    fn add_torrent_file() {
-        std::fs::remove_dir_all("/tmp/tr-test-file").unwrap_or(());
-        std::fs::create_dir("/tmp/tr-test-file").unwrap();
-        let c = ClientConfig::new()
-            .app_name("testing")
-            .config_dir("/tmp/tr-test-file/")
-            .download_dir("/tmp/tr-test-file/");
-        let mut c = Client::new(c);
-        let t = c.add_torrent_file(FILE_PATH).unwrap();
-        dbg!(t.info());
-        dbg!(t.stats());
-        c.close();
-    }
-
     #[test]
     fn thread_safe() {
-        std::fs::remove_dir_all("/tmp/tr-test-threadsafe").unwrap_or(());
-        std::fs::create_dir("/tmp/tr-test-threadsafe").unwrap();
-        let c = ClientConfig::new()
-            .app_name("testing")
-            .config_dir("/tmp/tr-test-threadsafe/")
-            .download_dir("/tmp/tr-test-threadsafe/");
-        let mut client = Client::new(c);
-        thread::spawn(move || client.close());
-    }
+        let test_dir = "/tmp/tr-test-thread";
 
-    // Wait for download to finish
-    #[test]
-    #[ignore]
-    fn download_torrent() {
-        std::fs::remove_dir_all("/tmp/tr-test-dl").unwrap_or(());
-        std::fs::create_dir("/tmp/tr-test-dl").unwrap();
+        std::fs::create_dir(test_dir).unwrap();
+
         let c = ClientConfig::new()
             .app_name("testing")
-            .config_dir("/tmp/tr-test-dl/")
-            .download_dir("/tmp/tr-test-dl/");
-        let mut c = Client::new(c);
-        let t = c.add_torrent_file(FILE_PATH).unwrap();
-        t.start();
-        dbg!(t.stats());
-        // Run until done
-        while t.stats().percent_complete < 1.0 {
-            print!("{:#?}\r", t.stats().percent_complete);
-        }
-        c.close();
+            .config_dir(test_dir)
+            .download_dir(test_dir);
+
+        let mut client = Client::new(c);
+
+        thread::spawn(move || client.close());
+        std::fs::remove_dir_all(test_dir).unwrap_or(());
     }
 }
