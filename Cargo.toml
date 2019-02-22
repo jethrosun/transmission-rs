@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://gitlab.com/tornado-torrent/transmission-rs"
 categories = ["api-bindings"]
 keywords = ["torrent", "bittorrent", "transmission"]
+description = "A safe ergonomic wrapper for the Transmission BitTorrent library."
 
 [badges]
 gitlab = { repository = "tornado-torrent/transmission-rs", branch = "master" }
