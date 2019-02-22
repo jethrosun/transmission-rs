@@ -1,6 +1,6 @@
 [package]
 name = "transmission"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Steven vanZyl <rushsteve1@rushsteve1.us>"]
 edition = "2018"
 readme = "README.md"
@@ -13,7 +13,15 @@ description = "A safe ergonomic wrapper for the Transmission BitTorrent library.
 [badges]
 gitlab = { repository = "tornado-torrent/transmission-rs", branch = "master" }
 
+[features]
+docs-only = ["transmission-sys/docs-only"]
+
 [dependencies]
 transmission-sys = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
+
+[package.metadata.docs.rs]
+features = [ "docs-only" ]
+no-default-features = true
+all-features = false
