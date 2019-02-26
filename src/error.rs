@@ -2,7 +2,7 @@
 use std::error;
 use std::fmt;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use transmission_sys;
 
@@ -10,7 +10,7 @@ use transmission_sys;
 ///
 /// This enum acts as a general wrapper for errors. Most errors produced by
 /// `transmission-sys` can be converted to this using `Error::From`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Error {
     /// A general state of non-error.
     /// If this is is ever the `Err` of a `Result` please file a bug report.
@@ -80,10 +80,10 @@ impl From<transmission_sys::tr_parse_result> for Error {
 }
 
 // Let's us handle the way parse errors can be returned more specifically
-pub(crate) type parse_int = i32;
+pub(crate) type ParseInt = i32;
 
-impl From<parse_int> for Error {
-    fn from(int: parse_int) -> Self {
+impl From<ParseInt> for Error {
+    fn from(int: ParseInt) -> Self {
         match int {
             0 => Error::NoError,
             1 => Error::ParseErr,

@@ -1,12 +1,12 @@
 //! Contains the TorrentStats struct.
 use chrono::prelude::NaiveDateTime;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use transmission_sys;
 
 use crate::error::Error;
 
 /// The various states that a torrent can be in.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum TorrentState {
     /// The torrent is downloading
     Downloading,
@@ -49,7 +49,7 @@ impl From<transmission_sys::tr_torrent_activity> for TorrentState {
 /// These only exist for a torrent that has been added to a session.
 ///
 /// You can get it with `Torrent::stats()`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TorrentStats {
     /// The ID of the torrent.
     pub id: i32,

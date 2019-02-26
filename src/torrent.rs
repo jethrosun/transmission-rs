@@ -8,7 +8,7 @@ use std::sync::RwLock;
 use serde::ser::{SerializeStruct, Serializer};
 use transmission_sys;
 
-use crate::error::{parse_int, Error, TrResult};
+use crate::error::{Error, ParseInt, TrResult};
 use crate::torrentbuilder::TorrentBuilder;
 use crate::torrentinfo::TorrentInfo;
 use crate::torrentstats::TorrentStats;
@@ -32,7 +32,7 @@ impl<'a> Torrent {
             tor = transmission_sys::tr_torrentNew(ctor, &mut error, &mut dupli);
         }
         // Match the possible errors from torrentNew
-        Error::from(error as parse_int).as_result().and_then(|_| {
+        Error::from(error as ParseInt).as_result().and_then(|_| {
             Ok(Self {
                 tr_torrent: RwLock::new(NonNull::new(tor).unwrap()),
             })

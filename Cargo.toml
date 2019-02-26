@@ -1,6 +1,6 @@
 [package]
 name = "transmission"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Steven vanZyl <rushsteve1@rushsteve1.us>"]
 edition = "2018"
 readme = "README.md"

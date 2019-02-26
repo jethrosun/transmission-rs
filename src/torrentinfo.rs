@@ -2,11 +2,11 @@
 use std::ffi;
 
 use chrono::prelude::NaiveDateTime;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use transmission_sys;
 
 /// A file that is part of a torrent.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TorrentFile {
     /// The length of the file in bytes
     pub length: u64,
@@ -37,7 +37,7 @@ impl From<transmission_sys::tr_file> for TorrentFile {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TorrentPiece {
     /// Last time the piece was checked
     pub time_checked: NaiveDateTime,
@@ -58,7 +58,7 @@ impl From<transmission_sys::tr_piece> for TorrentPiece {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TrackerInfo {
     pub tier: i32,
     pub announce: String,
@@ -83,7 +83,7 @@ impl From<transmission_sys::tr_tracker_info> for TrackerInfo {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TorrentInfo {
     /// Total download size in bytes
     pub total_size: u64,
