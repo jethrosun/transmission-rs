@@ -1,3 +1,4 @@
+//! Interface for creating a new torrent.
 use std::ffi;
 use std::io;
 use std::path::PathBuf;

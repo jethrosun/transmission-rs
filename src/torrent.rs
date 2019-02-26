@@ -1,3 +1,4 @@
+//! The Torrent struct and related components.
 use std::ffi;
 use std::mem;
 use std::path::PathBuf;
@@ -15,6 +16,8 @@ use crate::torrentstats::TorrentStats;
 // const MAGIC_NUMBER: u32 = 95549;
 
 /// Representation of a torrent download.
+///
+/// Can be used to start, stop, or get the information of a torrent.
 pub struct Torrent {
     tr_torrent: RwLock<NonNull<transmission_sys::tr_torrent>>,
 }

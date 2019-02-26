@@ -1,19 +1,25 @@
+//! Various structs containing Torrent information.
 use std::ffi;
 
 use chrono::prelude::NaiveDateTime;
 use serde::Serialize;
 use transmission_sys;
 
+/// A file that is part of a torrent.
 #[derive(Debug, Serialize)]
 pub struct TorrentFile {
-    length: u64,
-    name: String,
-    priority: i8,
-    dnd: i8,
-    is_renamed: bool,
-    first_piece: u32,
-    last_piece: u32,
-    offset: u64,
+    /// The length of the file in bytes
+    pub length: u64,
+    /// Name of the file
+    pub name: String,
+    /// Download priority of the file
+    pub priority: i8,
+    pub dnd: i8,
+    /// Was the file renamed?
+    pub is_renamed: bool,
+    pub first_piece: u32,
+    pub last_piece: u32,
+    pub offset: u64,
 }
 
 impl From<transmission_sys::tr_file> for TorrentFile {
@@ -33,10 +39,12 @@ impl From<transmission_sys::tr_file> for TorrentFile {
 
 #[derive(Debug, Serialize)]
 pub struct TorrentPiece {
-    time_checked: NaiveDateTime,
-    hash: [u8; 20],
-    priority: i8,
-    dnd: i8,
+    /// Last time the piece was checked
+    pub time_checked: NaiveDateTime,
+    pub hash: [u8; 20],
+    /// Priority of the piece
+    pub priority: i8,
+    pub dnd: i8,
 }
 
 impl From<transmission_sys::tr_piece> for TorrentPiece {
@@ -52,10 +60,10 @@ impl From<transmission_sys::tr_piece> for TorrentPiece {
 
 #[derive(Debug, Serialize)]
 pub struct TrackerInfo {
-    tier: i32,
-    announce: String,
-    scrape: String,
-    id: u32,
+    pub tier: i32,
+    pub announce: String,
+    pub scrape: String,
+    pub id: u32,
 }
 
 impl From<transmission_sys::tr_tracker_info> for TrackerInfo {
@@ -77,26 +85,43 @@ impl From<transmission_sys::tr_tracker_info> for TrackerInfo {
 
 #[derive(Debug, Serialize)]
 pub struct TorrentInfo {
-    total_size: u64,
-    original_name: String,
-    name: String,
-    torrent: String,
-    webseeds: Vec<String>,
-    comment: String,
-    creator: String,
-    files: Vec<TorrentFile>,
-    pieces: Vec<TorrentPiece>,
-    trackers: Vec<TrackerInfo>,
-    date_created: NaiveDateTime,
-    tracker_count: u32,
-    webseed_count: u32,
-    file_count: u32,
-    piece_size: u32,
-    piece_count: u32,
-    hash: [u8; 20],
-    hash_string: String,
-    is_private: bool,
-    is_folder: bool,
+    /// Total download size in bytes
+    pub total_size: u64,
+    /// Original name of the torrent
+    pub original_name: String,
+    /// Name of the torrent
+    pub name: String,
+    pub torrent: String,
+    /// Webseeds of the torrent
+    pub webseeds: Vec<String>,
+    /// Comment on the torrent
+    pub comment: String,
+    /// The torrent's creator
+    pub creator: String,
+    /// Files of the torrent
+    pub files: Vec<TorrentFile>,
+    /// Pieces of the torrent
+    pub pieces: Vec<TorrentPiece>,
+    /// Trackers of the torrent
+    pub trackers: Vec<TrackerInfo>,
+    /// Date the torrent was created
+    pub date_created: NaiveDateTime,
+    /// Number of trackers
+    pub tracker_count: u32,
+    /// Number of webseeds
+    pub webseed_count: u32,
+    /// Number of files
+    pub file_count: u32,
+    /// Sice of pieces in bytes
+    pub piece_size: u32,
+    /// Number of pieces
+    pub piece_count: u32,
+    pub hash: [u8; 20],
+    /// String hash of the torrent
+    pub hash_string: String,
+    pub is_private: bool,
+    /// Is it a torrent of a folder?
+    pub is_folder: bool,
 }
 
 impl From<transmission_sys::tr_info> for TorrentInfo {

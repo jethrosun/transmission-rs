@@ -1,3 +1,4 @@
+//! Contains the TorrentStats struct.
 use chrono::prelude::NaiveDateTime;
 use serde::Serialize;
 use transmission_sys;
@@ -44,6 +45,10 @@ impl From<transmission_sys::tr_torrent_activity> for TorrentState {
     }
 }
 
+/// The stats of a torrent.
+/// These only exist for a torrent that has been added to a session.
+///
+/// You can get it with `Torrent::stats()`.
 #[derive(Debug, Serialize)]
 pub struct TorrentStats {
     /// The ID of the torrent.

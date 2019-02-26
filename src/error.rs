@@ -1,5 +1,4 @@
-//! Module containing the various Error types used in the library.
-
+///! Module containing the various Error types used in the library.
 use std::error;
 use std::fmt;
 
