@@ -101,6 +101,10 @@ pub struct TorrentInfo {
     /// Files of the torrent
     pub files: Vec<TorrentFile>,
     /// Pieces of the torrent
+    ///
+    /// This is skipped in Serialization due to it's size.
+    /// If you want it serialized you will have to do it manually.
+    #[serde(skip)]
     pub pieces: Vec<TorrentPiece>,
     /// Trackers of the torrent
     pub trackers: Vec<TrackerInfo>,

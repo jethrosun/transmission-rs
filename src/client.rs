@@ -1,3 +1,4 @@
+//! Client for download management.
 use std::ffi;
 use std::fs::canonicalize;
 use std::mem;
