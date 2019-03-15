@@ -3,23 +3,24 @@ use std::ffi;
 use std::mem;
 use std::path::PathBuf;
 use std::ptr::{null, null_mut, NonNull};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use serde::ser::{SerializeStruct, Serializer};
 use transmission_sys;
 
+use super::TorrentBuilder;
+use super::TorrentInfo;
+use super::TorrentStats;
 use crate::error::{Error, ParseInt, TrResult};
-use crate::torrentbuilder::TorrentBuilder;
-use crate::torrentinfo::TorrentInfo;
-use crate::torrentstats::TorrentStats;
 
 // const MAGIC_NUMBER: u32 = 95549;
 
 /// Representation of a torrent download.
 ///
 /// Can be used to start, stop, or get the information of a torrent.
+#[derive(Clone)]
 pub struct Torrent {
-    tr_torrent: RwLock<NonNull<transmission_sys::tr_torrent>>,
+    tr_torrent: Arc<RwLock<NonNull<transmission_sys::tr_torrent>>>,
 }
 
 impl<'a> Torrent {
@@ -34,14 +35,14 @@ impl<'a> Torrent {
         // Match the possible errors from torrentNew
         Error::from(error as ParseInt).as_result().and_then(|_| {
             Ok(Self {
-                tr_torrent: RwLock::new(NonNull::new(tor).unwrap()),
+                tr_torrent: Arc::new(RwLock::new(NonNull::new(tor).unwrap())),
             })
         })
     }
 
     pub(crate) fn from_tr_torrent(tr_torrent: *mut transmission_sys::tr_torrent) -> TrResult<Self> {
         Ok(Self {
-            tr_torrent: RwLock::new(NonNull::new(tr_torrent).unwrap()),
+            tr_torrent: Arc::new(RwLock::new(NonNull::new(tr_torrent).unwrap())),
         })
     }
 
