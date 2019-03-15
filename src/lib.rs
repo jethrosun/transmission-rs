@@ -7,3 +7,6 @@
 pub mod client;
 pub mod error;
 pub mod torrent;
+
+pub use client::{Client, ClientConfig};
+pub use torrent::{Torrent, TorrentBuilder};

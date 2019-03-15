@@ -33,7 +33,7 @@ impl<'a> Torrent {
             tor = transmission_sys::tr_torrentNew(ctor, &mut error, &mut dupli);
         }
         // Match the possible errors from torrentNew
-        Error::from(error as ParseInt).as_result().and_then(|_| {
+        Error::from(error as ParseInt).to_result().and_then(|_| {
             Ok(Self {
                 tr_torrent: Arc::new(RwLock::new(NonNull::new(tor).unwrap())),
             })
@@ -68,7 +68,7 @@ impl<'a> Torrent {
 
     /// Start or resume the torrent
     pub fn start(&self) {
-        let mut tor = *self.tr_torrent.write().unwrap();
+        let mut tor = self.tr_torrent.write().unwrap();
         unsafe {
             transmission_sys::tr_torrentStart(tor.as_mut());
         }
@@ -76,7 +76,7 @@ impl<'a> Torrent {
 
     /// Stop (pause) the torrent
     pub fn stop(&self) {
-        let mut tor = *self.tr_torrent.write().unwrap();
+        let mut tor = self.tr_torrent.write().unwrap();
         unsafe {
             transmission_sys::tr_torrentStop(tor.as_mut());
         }
@@ -85,7 +85,10 @@ impl<'a> Torrent {
     /// Removes a torrent from the downloads
     /// Consumes the Torrent
     pub fn remove(self, with_data: bool) {
-        let mut tor = *self.tr_torrent.write().unwrap();
+        let mut tor = Arc::try_unwrap(self.tr_torrent)
+            .unwrap()
+            .into_inner()
+            .unwrap();
         unsafe {
             transmission_sys::tr_torrentRemove(tor.as_mut(), with_data, None);
         }
@@ -94,7 +97,7 @@ impl<'a> Torrent {
     /// Verify the torrent
     // TODO callback function
     pub fn verify(&self) {
-        let mut tor = *self.tr_torrent.write().unwrap();
+        let mut tor = self.tr_torrent.write().unwrap();
         unsafe { transmission_sys::tr_torrentVerify(tor.as_mut(), None, null_mut()) }
     }
 
@@ -102,7 +105,7 @@ impl<'a> Torrent {
 
     /// This torrent's name
     pub fn name(&self) -> &str {
-        let tor = *self.tr_torrent.write().unwrap();
+        let tor = self.tr_torrent.read().unwrap();
         unsafe {
             let c_str = transmission_sys::tr_torrentName(tor.as_ref());
             ffi::CStr::from_ptr(c_str).to_str().unwrap()
@@ -111,18 +114,18 @@ impl<'a> Torrent {
 
     /// The unique ID of the torrent
     pub fn id(&self) -> i32 {
-        let tor = *self.tr_torrent.write().unwrap();
+        let tor = self.tr_torrent.read().unwrap();
         unsafe { transmission_sys::tr_torrentId(tor.as_ref()) }
     }
 
     /// All the stats of the torrent as given by Transmission
     pub fn stats(&self) -> TorrentStats {
-        let mut tor = *self.tr_torrent.write().unwrap();
+        let mut tor = self.tr_torrent.write().unwrap();
         unsafe { TorrentStats::from(transmission_sys::tr_torrentStatCached(tor.as_mut())) }
     }
 
     pub fn info(&self) -> TorrentInfo {
-        let tor = *self.tr_torrent.write().unwrap();
+        let tor = self.tr_torrent.read().unwrap();
         let info;
         unsafe {
             info = transmission_sys::tr_torrentInfo(tor.as_ref());
@@ -130,16 +133,16 @@ impl<'a> Torrent {
         TorrentInfo::from(unsafe { *info })
     }
 
-    pub fn set_ratio(&self, limit: f64) {
-        let mut tor = *self.tr_torrent.write().unwrap();
+    pub fn set_ratio(&mut self, limit: f64) {
+        let mut tor = self.tr_torrent.write().unwrap();
         // Does ratio mode need to be toggled?
         unsafe {
             transmission_sys::tr_torrentSetRatioLimit(tor.as_mut(), limit);
         }
     }
 
-    pub fn set_download_dir(&self, download_dir: PathBuf) {
-        let mut tor = *self.tr_torrent.write().unwrap();
+    pub fn set_download_dir(&mut self, download_dir: PathBuf) {
+        let mut tor = self.tr_torrent.write().unwrap();
         let d_dir = ffi::CString::new(download_dir.to_str().unwrap()).unwrap();
         unsafe {
             transmission_sys::tr_torrentSetDownloadDir(tor.as_mut(), d_dir.as_ptr());

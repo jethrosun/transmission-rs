@@ -50,6 +50,7 @@ impl TorrentBuilder {
     }
 
     /// Consume the builder and return the created torrent or an error
+    #[allow(clippy::while_immutable_condition)]
     pub fn build(self) -> TrResult<String> {
         let file_c_string = ffi::CString::new(self.file.to_str().unwrap()).unwrap();
         let mut tr_trackers: Vec<transmission_sys::tr_tracker_info> = Vec::new();
@@ -105,7 +106,7 @@ impl TorrentBuilder {
 
         // If there was no error return the output_path
         error
-            .as_result()
+            .to_result()
             .and_then(|_| Ok(output_path.to_str().unwrap().to_owned()))
     }
 

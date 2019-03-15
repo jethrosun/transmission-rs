@@ -126,6 +126,7 @@ pub struct TorrentStats {
 }
 
 /// Converts tr_stat into TorrentStats
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 impl From<*const transmission_sys::tr_stat> for TorrentStats {
     /// Convert from the unsafe generated type to the safe library type
     fn from(stat: *const transmission_sys::tr_stat) -> Self {
