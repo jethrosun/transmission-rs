@@ -2,81 +2,13 @@
 use std::ffi;
 use std::fs::canonicalize;
 use std::mem;
-use std::path::PathBuf;
 use std::ptr::NonNull;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use transmission_sys;
 
-use super::error::{Error, TrResult};
-use super::torrent::Torrent;
-
-// const MAGIC_NUMBER: u32 = 3245;
-
-// TODO expand on this to have all the options Transmission exposes
-/// Configuration for the torrent client made using a builder pattern.
-#[derive(Default)]
-pub struct ClientConfig {
-    /// The name of the client application
-    app_name: Option<String>,
-    /// The path to the configuration directory
-    config_dir: Option<PathBuf>,
-    /// The path to the download directory
-    download_dir: Option<PathBuf>,
-    /// Whether or not to use UTP
-    use_utp: bool,
-    /// What level of logging to use.
-    log_level: i64,
-}
-
-impl ClientConfig {
-    /// Create a new ClientConfig
-    pub fn new() -> Self {
-        Self {
-            app_name: None,
-            config_dir: None,
-            download_dir: None,
-            use_utp: true,
-            log_level: 1,
-        }
-    }
-
-    /// Set the application's name. Must be set.
-    pub fn app_name(mut self, name: &str) -> Self {
-        self.app_name = Some(String::from(name));
-        self
-    }
-
-    /// Set the configuration directory path. Must be set.
-    pub fn config_dir(mut self, dir: &str) -> Self {
-        self.config_dir = Some(canonicalize(dir).unwrap());
-        self
-    }
-
-    /// Set the download directory path. Must be set.
-    pub fn download_dir(mut self, dir: &str) -> Self {
-        self.download_dir = Some(canonicalize(dir).unwrap());
-        self
-    }
-
-    /// Toggle using UTP. Defaults to `true`.
-    pub fn use_utp(mut self, utp: bool) -> Self {
-        self.use_utp = utp;
-        self
-    }
-
-    /// Set the log level.
-    ///
-    /// - 0: No logging
-    /// - 1: Errors
-    /// - 2: Info
-    /// - 3: Debug
-    /// - 4: Everything
-    /// Defaults to 1
-    pub fn log_level(mut self, level: i64) -> Self {
-        self.log_level = level;
-        self
-    }
-}
+use super::ClientConfig;
+use crate::error::{Error, TrResult};
+use crate::torrent::Torrent;
 
 /// Interface into the major functions of Transmission
 /// including adding, and removing torrents.
@@ -111,10 +43,9 @@ impl ClientConfig {
 ///
 /// # std::fs::remove_dir_all(test_dir).unwrap();
 /// ```
+#[derive(Clone)]
 pub struct Client {
-    // tr_session: RwLock<mem::ManuallyDrop<transmission_sys::tr_session>>,
-    tr_session: RwLock<NonNull<transmission_sys::tr_session>>,
-    closed: bool,
+    tr_session: Arc<RwLock<NonNull<transmission_sys::tr_session>>>,
 }
 
 impl Client {
@@ -153,8 +84,7 @@ impl Client {
             transmission_sys::tr_sessionSetUTPEnabled(ses, config.use_utp);
         }
         Self {
-            tr_session: RwLock::new(NonNull::new(ses).unwrap()),
-            closed: false,
+            tr_session: Arc::new(RwLock::new(NonNull::new(ses).unwrap())),
         }
     }
 
@@ -184,11 +114,11 @@ impl Client {
     ///
     /// # std::fs::remove_dir_all(test_dir).unwrap();
     /// ```
-    pub fn add_torrent_file(&mut self, path: &str) -> TrResult<Torrent> {
+    pub fn add_torrent_file(&self, path: &str) -> TrResult<Torrent> {
         let path = canonicalize(path).unwrap();
         let path = ffi::CString::new(path.to_str().unwrap()).unwrap();
 
-        let mut ses = *self.tr_session.write().unwrap();
+        let mut ses = self.tr_session.write().unwrap();
         let ctor;
         unsafe {
             ctor = transmission_sys::tr_ctorNew(ses.as_mut());
@@ -224,9 +154,9 @@ impl Client {
     /// c.close();
     ///
     /// # std::fs::remove_dir_all(test_dir).unwrap();
-    pub fn add_torrent_magnet(&mut self, link: &str) -> TrResult<Torrent> {
+    pub fn add_torrent_magnet(&self, link: &str) -> TrResult<Torrent> {
         let link = ffi::CString::new(link).unwrap();
-        let mut ses = *self.tr_session.write().unwrap();
+        let mut ses = self.tr_session.write().unwrap();
         let ctor;
         unsafe {
             ctor = transmission_sys::tr_ctorNew(ses.as_mut());
@@ -237,22 +167,21 @@ impl Client {
         }
     }
 
-    /// Gracefully closes the client ending the session.
+    /// Consumes the Client and gracefully closes the session.
     ///
-    /// Always call this otherwise the client will `panic!` on drop in order to prevent issues.
-    pub fn close(&mut self) {
-        let ses = *self.tr_session.write().unwrap();
-        self.closed = true;
-        unsafe {
-            transmission_sys::tr_sessionClose(ses.as_ptr());
-        }
-    }
+    /// This should always be called to ensure that the Client lasts as long as you intend.
+    pub fn close(self) {}
 }
 
 impl Drop for Client {
     fn drop(&mut self) {
-        if !self.closed {
-            panic!("Dropped an unclosed Client session. Please call Client.close().")
+        // If this is the last reference
+        if Arc::strong_count(&self.tr_session) == 1 {
+            // Close the session
+            let ses = self.tr_session.write().unwrap();
+            unsafe {
+                transmission_sys::tr_sessionClose(ses.as_ptr());
+            }
         }
     }
 }
@@ -276,7 +205,7 @@ mod tests {
             .config_dir(test_dir)
             .download_dir(test_dir);
 
-        let mut client = Client::new(c);
+        let client = Client::new(c);
 
         thread::spawn(move || client.close());
         std::fs::remove_dir_all(test_dir).unwrap_or(());

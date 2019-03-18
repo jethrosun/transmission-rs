@@ -95,7 +95,7 @@ impl From<ParseInt> for Error {
 
 impl Error {
     /// Converts the `Error` to a `TrResult` where `NoError` causes `Ok`.
-    pub fn as_result(self) -> TrResult<()> {
+    pub fn to_result(self) -> TrResult<()> {
         match self {
             Error::NoError => Ok(()),
             x => Err(x),
