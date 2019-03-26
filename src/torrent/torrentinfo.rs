@@ -5,6 +5,8 @@ use chrono::prelude::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use transmission_sys;
 
+use super::Priority;
+
 /// A file that is part of a torrent.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TorrentFile {
@@ -13,7 +15,7 @@ pub struct TorrentFile {
     /// Name of the file
     pub name: String,
     /// Download priority of the file
-    pub priority: i8,
+    pub priority: Priority,
     pub dnd: i8,
     /// Was the file renamed?
     pub is_renamed: bool,
@@ -27,7 +29,7 @@ impl From<transmission_sys::tr_file> for TorrentFile {
         Self {
             length: file.length,
             name: unsafe { ffi::CStr::from_ptr(file.name).to_str().unwrap().to_owned() },
-            priority: file.priority,
+            priority: Priority::from(file.priority),
             dnd: file.dnd,
             is_renamed: file.is_renamed != 0,
             first_piece: file.firstPiece,

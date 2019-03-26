@@ -6,15 +6,51 @@ use std::ptr::{null, null_mut, NonNull};
 use std::sync::{Arc, RwLock};
 
 use serde::ser::{SerializeStruct, Serializer};
+use serde::{Deserialize, Serialize};
 use transmission_sys;
 
-use super::Priority;
+use super::torrentinfo::TorrentFile;
 use super::TorrentBuilder;
 use super::TorrentInfo;
 use super::TorrentStats;
 use crate::error::{Error, ParseInt, TrResult};
 
-// const MAGIC_NUMBER: u32 = 95549;
+/// The priority of a torrent as either:
+///
+/// - High
+/// - Normal
+/// - Low
+///
+/// Priority does not directly affect download speed but
+/// instead changes how the torrent will be queued compared to other torrents
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(i8)]
+pub enum Priority {
+    Low = transmission_sys::TR_PRI_LOW as i8,
+    Normal = transmission_sys::TR_PRI_NORMAL as i8,
+    High = transmission_sys::TR_PRI_HIGH as i8,
+}
+
+impl From<transmission_sys::_bindgen_ty_2> for Priority {
+    fn from(f: transmission_sys::_bindgen_ty_2) -> Self {
+        match f {
+            transmission_sys::TR_PRI_LOW => Priority::Low,
+            transmission_sys::TR_PRI_NORMAL => Priority::Normal,
+            transmission_sys::TR_PRI_HIGH => Priority::High,
+        }
+    }
+}
+
+impl From<i8> for Priority {
+    fn from(f: i8) -> Self {
+        match f {
+            x if x < 0 => Priority::Low,
+            0 => Priority::Normal,
+            x if x < 0 => Priority::High,
+            _ => Priority::Normal,
+        }
+    }
+}
 
 /// Representation of a torrent download.
 ///
@@ -165,6 +201,68 @@ impl<'a> Torrent {
         let mut tor = self.tr_torrent.write().unwrap();
         unsafe {
             transmission_sys::tr_torrentSetPriority(tor.as_mut(), priority as i8);
+        }
+    }
+
+    ///# File Related Functions
+
+    /// Get the index of a file in a torrent
+    pub fn get_file_index(&self, file: &TorrentFile) -> Option<usize> {
+        self.info()
+            .files
+            .iter()
+            .position(|e| e.name == file.name && e.length == file.length)
+    }
+
+    pub fn set_file_download(&mut self, file: TorrentFile, download: bool) {
+        self.set_files_download(vec![file], download);
+    }
+
+    /// Set whether or not a set of files should be downloaded
+    pub fn set_files_download(&mut self, files: Vec<TorrentFile>, download: bool) {
+        let ids = files
+            .iter()
+            .filter_map(|f| self.get_file_index(f).and_then(|e| Some(e as u32)))
+            .collect();
+        self.set_files_download_by_id(ids, download);
+    }
+
+    /// Set whether or not a set of files, by ids, should be downloaded
+    pub fn set_files_download_by_id(&mut self, ids: Vec<u32>, download: bool) {
+        let mut tor = self.tr_torrent.write().unwrap();
+        unsafe {
+            transmission_sys::tr_torrentSetFileDLs(
+                tor.as_mut(),
+                ids.as_ptr(),
+                ids.len() as u32,
+                download,
+            );
+        }
+    }
+
+    pub fn set_file_priority(&mut self, file: TorrentFile, priority: Priority) {
+        self.set_files_priorities(vec![file], priority);
+    }
+
+    /// Set the priority of a set of files
+    pub fn set_files_priorities(&mut self, files: Vec<TorrentFile>, priority: Priority) {
+        let ids = files
+            .iter()
+            .filter_map(|f| self.get_file_index(f).and_then(|e| Some(e as u32)))
+            .collect();
+        self.set_files_priorities_by_id(ids, priority);
+    }
+
+    /// Set the priority of a set of files, by ids
+    pub fn set_files_priorities_by_id(&mut self, ids: Vec<u32>, priority: Priority) {
+        let mut tor = self.tr_torrent.write().unwrap();
+        unsafe {
+            transmission_sys::tr_torrentSetFilePriorities(
+                tor.as_mut(),
+                ids.as_ptr(),
+                ids.len() as u32,
+                priority as i8,
+            )
         }
     }
 }

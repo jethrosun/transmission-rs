@@ -1,11 +1,9 @@
-mod priority;
-mod torrent;
+pub mod torrent;
 mod torrentbuilder;
-mod torrentinfo;
-mod torrentstats;
+pub mod torrentinfo;
+pub mod torrentstats;
 
-pub use priority::Priority;
-pub use torrent::Torrent;
+pub use torrent::{Torrent, Priority};
 pub use torrentbuilder::TorrentBuilder;
 pub use torrentinfo::TorrentInfo;
 pub use torrentstats::{TorrentState, TorrentStats};
