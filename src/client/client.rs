@@ -1,7 +1,6 @@
 //! Client for download management.
 use std::ffi;
 use std::fs::canonicalize;
-use std::mem;
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 use transmission_sys;
@@ -54,34 +53,22 @@ impl Client {
     /// Takes a `ClientConfig` with the populated options.
     pub fn new(config: ClientConfig) -> Self {
         // Change things into the types needed
-        let c_dir = config.config_dir.expect("Configuration directory not set!");
+        let c_dir = config
+            .config_dir
+            .clone()
+            .expect("Configuration directory not set!");
         let c_dir = ffi::CString::new(c_dir.to_str().unwrap()).unwrap();
 
-        let app_name = config.app_name.expect("Application name not set!");
+        let app_name = config.app_name.clone().expect("Application name not set!");
         let app_name = ffi::CString::new(app_name).unwrap();
-
-        let d_dir = config.download_dir.expect("Download directory not set!");
-        let d_dir = ffi::CString::new(d_dir.to_str().unwrap()).unwrap();
 
         let ses;
         unsafe {
-            let mut set: transmission_sys::tr_variant = mem::uninitialized();
-            transmission_sys::tr_variantInitDict(&mut set, 0);
+            let mut set = config.to_variant();
             transmission_sys::tr_sessionLoadSettings(&mut set, c_dir.as_ptr(), app_name.as_ptr());
-
-            // Set the log level
-            transmission_sys::tr_variantDictAddInt(
-                &mut set,
-                transmission_sys::TR_KEY_message_level as usize,
-                config.log_level,
-            );
 
             ses = transmission_sys::tr_sessionInit(c_dir.as_ptr(), false, &mut set);
             transmission_sys::tr_variantFree(&mut set);
-
-            // Apply the other settings
-            transmission_sys::tr_sessionSetDownloadDir(ses, d_dir.as_ptr());
-            transmission_sys::tr_sessionSetUTPEnabled(ses, config.use_utp);
         }
         Self {
             tr_session: Arc::new(RwLock::new(NonNull::new(ses).unwrap())),
