@@ -8,6 +8,7 @@ use std::sync::{Arc, RwLock};
 use serde::ser::{SerializeStruct, Serializer};
 use transmission_sys;
 
+use super::Priority;
 use super::TorrentBuilder;
 use super::TorrentInfo;
 use super::TorrentStats;
@@ -118,12 +119,18 @@ impl<'a> Torrent {
         unsafe { transmission_sys::tr_torrentId(tor.as_ref()) }
     }
 
-    /// All the stats of the torrent as given by Transmission
+    /// The stats of the torrent as given by Transmission
+    ///
+    /// These are only available after the torrent has been added to a session
     pub fn stats(&self) -> TorrentStats {
         let mut tor = self.tr_torrent.write().unwrap();
         unsafe { TorrentStats::from(transmission_sys::tr_torrentStatCached(tor.as_mut())) }
     }
 
+    /// The info of the torrent as given by Transmission
+    ///
+    /// This is available after the torrent has been parsed and does not need to
+    /// be added to a session.
     pub fn info(&self) -> TorrentInfo {
         let tor = self.tr_torrent.read().unwrap();
         let info;
@@ -133,6 +140,7 @@ impl<'a> Torrent {
         TorrentInfo::from(unsafe { *info })
     }
 
+    /// Set the seed ratio of the torrent
     pub fn set_ratio(&mut self, limit: f64) {
         let mut tor = self.tr_torrent.write().unwrap();
         // Does ratio mode need to be toggled?
@@ -141,11 +149,22 @@ impl<'a> Torrent {
         }
     }
 
+    /// Set the download directory of the torrent
     pub fn set_download_dir(&mut self, download_dir: PathBuf) {
         let mut tor = self.tr_torrent.write().unwrap();
         let d_dir = ffi::CString::new(download_dir.to_str().unwrap()).unwrap();
         unsafe {
             transmission_sys::tr_torrentSetDownloadDir(tor.as_mut(), d_dir.as_ptr());
+        }
+    }
+
+    /// Set the priority of the torrent
+    ///
+    /// See `Priority` for more information
+    pub fn set_priority(&mut self, priority: Priority) {
+        let mut tor = self.tr_torrent.write().unwrap();
+        unsafe {
+            transmission_sys::tr_torrentSetPriority(tor.as_mut(), priority as i8);
         }
     }
 }
