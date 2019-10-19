@@ -17,7 +17,7 @@ gitlab = { repository = "tornado-torrent/transmission-rs", branch = "master" }
 docs-only = ["transmission-sys/docs-only"]
 
 [dependencies]
-transmission-sys = "0.3"
+transmission-sys = { git = "https://github.com/jethrosun/transmission-sys", branch = "pvn" }
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 
