@@ -34,7 +34,7 @@ impl ClientConfig {
             app_name: None,
             config_dir: None,
             download_dir: None,
-            use_utp: true,
+            use_utp: false,
             log_level: 1,
             rpc_enabled: false,
             rpc_url: None,
